@@ -1,0 +1,404 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-1,#f4f4f8); color: #1a1a1a; }
+#app { max-width: 760px; margin: 0 auto; padding: 16px; }
+
+.pbar { background:#e0e0e0; border-radius:8px; height:5px; margin-bottom:6px; }
+.pbar-fill { background:#4f6ef7; height:5px; border-radius:8px; transition:width .4s; }
+.pbar-lbl { font-size:12px; color:#888; text-align:right; margin-bottom:14px; }
+
+.card { background:#fff; border-radius:16px; padding:24px; border:1.5px solid #e8e8e8; }
+
+.pill { display:inline-flex; align-items:center; background:#eef1ff; color:#4f6ef7; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
+
+h2 { font-size:20px; font-weight:800; margin-bottom:10px; line-height:1.3; }
+p { font-size:14px; line-height:1.8; color:#333; margin-bottom:10px; }
+
+.box { border-radius:12px; padding:14px 16px; margin:12px 0; }
+.blue   { background:#eef1ff; border-left:4px solid #4f6ef7; }
+.green  { background:#e8f5e9; border-left:4px solid #2e7d32; }
+.orange { background:#fff3e0; border-left:4px solid #f57c00; }
+.pink   { background:#fce4ec; border-left:4px solid #e91e63; }
+.purple { background:#f3e5f5; border-left:4px solid #8e24aa; }
+.box-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; opacity:.65; margin-bottom:6px; }
+.box p { margin:0; }
+
+canvas { display:block; border-radius:10px; }
+
+.flex { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.flex-center { display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
+
+.tag { display:inline-block; font-family:monospace; font-size:15px; font-weight:700; padding:6px 14px; border-radius:8px; }
+.tag-blue { background:#1e1e2e; color:#89b4fa; }
+.tag-green { background:#1e2e1e; color:#a6e3a1; }
+.tag-red { background:#2e1e1e; color:#f38ba8; }
+
+.dice-row { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:14px 0; }
+.die { width:44px; height:44px; border-radius:10px; border:2px solid #e0e0e0; display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; background:#fff; transition:all .15s; user-select:none; }
+.die:hover { border-color:#4f6ef7; background:#eef1ff; transform:scale(1.1); }
+.die.picked { border-color:#4f6ef7; background:#eef1ff; }
+.avg-display { text-align:center; font-size:26px; font-weight:800; padding:12px; background:#f8f8fc; border-radius:10px; margin-top:10px; transition:all .3s; }
+.avg-label { font-size:12px; color:#888; font-weight:400; display:block; }
+
+/* KL visualizer */
+.slider-wrap { margin:10px 0; }
+.slider-wrap label { font-size:13px; font-weight:600; display:flex; justify-content:space-between; }
+input[type=range] { width:100%; margin:6px 0; }
+
+/* ELBO breakdown */
+.elbo-row { display:flex; align-items:flex-start; gap:14px; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+.elbo-row:last-child { border-bottom:none; }
+.elbo-symbol { font-family:monospace; font-size:14px; font-weight:700; padding:8px 12px; border-radius:8px; min-width:140px; text-align:center; flex-shrink:0; line-height:1.4; }
+.elbo-explain { font-size:14px; color:#333; line-height:1.7; }
+.elbo-explain strong { color:#4f6ef7; }
+
+.nav { display:flex; gap:10px; margin-top:20px; }
+.btn { padding:10px 20px; border-radius:9px; border:none; cursor:pointer; font-size:14px; font-weight:700; }
+.btn-p { background:#4f6ef7; color:#fff; }
+.btn-s { background:#ececec; color:#333; }
+.btn:disabled { opacity:.35; cursor:not-allowed; }
+.btn:hover:not(:disabled) { opacity:.85; }
+.sp { flex:1; }
+</style>
+
+<div id="app">
+  <div class="pbar"><div class="pbar-fill" id="pb" style="width:0%"></div></div>
+  <div class="pbar-lbl" id="plbl">Step 1 of 5</div>
+  <div class="card" id="main"></div>
+</div>
+
+<script>
+let cur = 0;
+
+/* ── Die picking state ───────────────────────────────── */
+let diceVals = [1,2,3,4,5,6];
+let pickedDice = [];
+
+function renderDice() {
+  const row = document.getElementById('dicerow');
+  const avgEl = document.getElementById('avgval');
+  if (!row) return;
+  row.innerHTML = diceVals.map((v,i) => `<div class="die ${pickedDice.includes(i)?'picked':''}" onclick="pickDie(${i})">${['⚀','⚁','⚂','⚃','⚄','⚅'][v-1]}</div>`).join('');
+  if (pickedDice.length === 0) {
+    avgEl.innerHTML = '— <span class="avg-label">pick some dice to average</span>';
+    return;
+  }
+  const sum = pickedDice.reduce((a,i)=>a+diceVals[i],0);
+  const avg = (sum/pickedDice.length).toFixed(1);
+  avgEl.innerHTML = `<b>${avg}</b> <span class="avg-label">average of ${pickedDice.length} dice = ${pickedDice.map(i=>diceVals[i]).join(' + ')} ÷ ${pickedDice.length}</span>`;
+}
+function pickDie(i) {
+  const idx = pickedDice.indexOf(i);
+  if (idx >= 0) pickedDice.splice(idx,1); else pickedDice.push(i);
+  renderDice();
+}
+
+/* ── KL canvas ───────────────────────────────────────── */
+function drawKL(mu2, sigma2, canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle = '#f9f9fc'; ctx.fillRect(0,0,W,H);
+
+  function gauss(x, mu, sigma) {
+    return Math.exp(-0.5*((x-mu)/sigma)**2) / (sigma*Math.sqrt(2*Math.PI));
+  }
+
+  const xMin=-4, xMax=4;
+  function toPixX(x){ return (x-xMin)/(xMax-xMin)*W; }
+  function toPixY(y){ return H - 10 - y*(H-20)/0.5; }
+
+  // Draw target (standard normal, always the same) — BLUE = p(z)
+  ctx.beginPath();
+  ctx.moveTo(toPixX(xMin), H);
+  for (let x=xMin; x<=xMax; x+=0.05) {
+    const y = gauss(x, 0, 1);
+    ctx.lineTo(toPixX(x), toPixY(y));
+  }
+  ctx.lineTo(toPixX(xMax), H);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(79,110,247,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#4f6ef7'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let x=xMin; x<=xMax; x+=0.05) {
+    const y = gauss(x, 0, 1);
+    ctx.lineTo(toPixX(x), toPixY(y));
+  }
+  ctx.stroke();
+
+  // Draw encoder's distribution — ORANGE = q(z|x)
+  ctx.beginPath();
+  ctx.moveTo(toPixX(xMin), H);
+  for (let x=xMin; x<=xMax; x+=0.05) {
+    const y = gauss(x, mu2, sigma2);
+    ctx.lineTo(toPixX(x), toPixY(y));
+  }
+  ctx.lineTo(toPixX(xMax), H);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(245,124,0,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#f57c00'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let x=xMin; x<=xMax; x+=0.05) {
+    const y = gauss(x, mu2, sigma2);
+    ctx.lineTo(toPixX(x), toPixY(y));
+  }
+  ctx.stroke();
+
+  // KL divergence (numerical approx)
+  let kl = 0;
+  for (let x=xMin; x<=xMax; x+=0.01) {
+    const q = gauss(x, mu2, sigma2);
+    const p = gauss(x, 0, 1);
+    if (q > 0.0001 && p > 0.0001) kl += q * Math.log(q/p) * 0.01;
+  }
+
+  // Labels
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = '#4f6ef7';
+  ctx.fillText('p(z) = target', toPixX(-3.6), toPixY(0.38));
+  ctx.fillStyle = '#f57c00';
+  ctx.fillText('q(z|x) = encoder', toPixX(-3.6), toPixY(0.46));
+
+  // Shade gap (overlap region)
+  ctx.beginPath();
+  for (let x=xMin; x<=xMax; x+=0.05) {
+    const qv = gauss(x, mu2, sigma2);
+    const pv = gauss(x, 0, 1);
+    const diff = Math.abs(qv-pv);
+    const px = toPixX(x), py = toPixY(diff);
+    if (x === xMin) ctx.moveTo(px, H); else ctx.lineTo(px, py);
+  }
+  ctx.lineTo(toPixX(xMax), H);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(200,0,0,0.08)';
+  ctx.fill();
+
+  // KL display
+  ctx.font = 'bold 14px sans-serif';
+  const klColor = kl < 0.1 ? '#2e7d32' : kl < 0.5 ? '#f57c00' : '#c62828';
+  ctx.fillStyle = klColor;
+  const msg = kl < 0.05 ? '✅ KL ≈ 0 — perfect match!' : kl < 0.4 ? `⚠️ KL ≈ ${kl.toFixed(2)} — some difference` : `❌ KL ≈ ${kl.toFixed(2)} — very different`;
+  ctx.fillText(msg, 10, 20);
+}
+
+/* ── Steps ───────────────────────────────────────────── */
+const steps = [
+
+// ── Step 0: E (expectation) ──────────────────────────
+{ render() { return `
+<div class="pill">Step 1 — E[ ]</div>
+<h2>E[ ] just means "on average..."</h2>
+<p>That's it. <b>E[something]</b> = the average value of that something. The E stands for <b>Expectation</b>, which is just a fancy word for average.</p>
+<div class="box blue">
+  <div class="box-title">📖 Plain English translation</div>
+  <p><b>E[log p(x|z)]</b> means:<br>
+  "On average — across many different z values the encoder samples — how well does the decoder reconstruct x?"</p>
+</div>
+<p>We take the average because the encoder is <b>random</b> — every time it sees an image it samples a slightly different z. So we ask: <em>on average</em>, is the reconstruction good?</p>
+
+<div class="box orange">
+  <div class="box-title">🎲 Try it yourself — E = average</div>
+</div>
+<p style="font-size:13px;color:#555">Click any dice below to include them in the average. E[dice] = average of all rolls.</p>
+<div class="dice-row" id="dicerow"></div>
+<div class="avg-display" id="avgval">— <span class="avg-label">pick some dice to average</span></div>
+<p style="margin-top:12px;font-size:13px;color:#555">In a VAE, instead of dice we average <em>log p(x|z)</em> over many sampled z values. Same idea.</p>
+`; }},
+
+// ── Step 1: KL intuition ─────────────────────────────
+{ render() { return `
+<div class="pill">Step 2 — KL Divergence</div>
+<h2>KL = "how different are two shapes?"</h2>
+<p>KL divergence is just a way to measure <b>how far apart two probability distributions (two bell curves) are</b>.</p>
+<div class="flex-center" style="gap:20px;margin:14px 0">
+  <div style="text-align:center">
+    <div style="font-size:32px">🔵</div>
+    <div style="font-size:13px;font-weight:700;color:#4f6ef7">p(z)</div>
+    <div style="font-size:12px;color:#888">the TARGET<br>(standard normal)</div>
+  </div>
+  <div style="font-size:28px;color:#bbb;font-weight:300">vs</div>
+  <div style="text-align:center">
+    <div style="font-size:32px">🟠</div>
+    <div style="font-size:13px;font-weight:700;color:#f57c00">q(z|x)</div>
+    <div style="font-size:12px;color:#888">the ENCODER'S shape<br>(what it learned)</div>
+  </div>
+  <div style="font-size:28px;color:#bbb;font-weight:300">=</div>
+  <div style="text-align:center">
+    <div style="font-size:32px">📏</div>
+    <div style="font-size:13px;font-weight:700;color:#c62828">KL distance</div>
+    <div style="font-size:12px;color:#888">0 = identical<br>big = very different</div>
+  </div>
+</div>
+<div class="box orange">
+  <div class="box-title">🗣️ Real-world analogy</div>
+  <p>Imagine you have a dart board. <b>p(z)</b> is where darts <em>should</em> land (centered, normal spread). <b>q(z|x)</b> is where the encoder actually throws them. <b>KL measures how far off the encoder is</b> from the ideal.</p>
+</div>
+<p>In the VAE loss, we <b>penalize large KL</b> — meaning we punish the encoder whenever its distribution drifts too far from the standard normal. This keeps the latent space organized.</p>
+`; }},
+
+// ── Step 2: KL Interactive ───────────────────────────
+{ render() { return `
+<div class="pill">Step 3 — KL Interactive</div>
+<h2>See KL change live — drag the sliders</h2>
+<p>Blue curve = p(z) = standard normal (fixed target). Orange = q(z|x) = encoder's distribution (you control it). Watch what happens to KL.</p>
+<canvas id="klcanvas" width="680" height="200"></canvas>
+<div style="margin-top:14px">
+  <div class="slider-wrap">
+    <label>Center of orange curve (μ) <span id="muval">0.0</span></label>
+    <input type="range" id="slMu" min="-3" max="3" step="0.1" value="0" oninput="updateKL()">
+  </div>
+  <div class="slider-wrap">
+    <label>Width of orange curve (σ) <span id="sigval">1.0</span></label>
+    <input type="range" id="slSig" min="0.3" max="2.5" step="0.1" value="1.0" oninput="updateKL()">
+  </div>
+</div>
+<div class="box green" id="klmsg">
+  <div class="box-title">💡 What you're seeing</div>
+  <p>Both curves are identical → KL = 0. This is what the VAE tries to achieve through training!</p>
+</div>
+`; }},
+
+// ── Step 3: The ‖ symbol ─────────────────────────────
+{ render() { return `
+<div class="pill">Step 4 — The ‖ symbol</div>
+<h2>KL(q ‖ p) — what does ‖ mean?</h2>
+<p>The <b>‖</b> just means <em>"compared to"</em> or <em>"versus"</em>. It shows you which distribution you're measuring from and which is the target.</p>
+<div style="background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:16px;padding:16px;border-radius:12px;text-align:center;margin:14px 0;line-height:2.2">
+  KL(<span style="color:#f38ba8">q(z|x)</span> ‖ <span style="color:#89b4fa">p(z)</span>)
+  <div style="font-size:12px;margin-top:6px;color:#888">
+    &nbsp;&nbsp;&nbsp;<span style="color:#f38ba8">↑ encoder's shape</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color:#89b4fa">↑ target shape</span>
+  </div>
+</div>
+<p>Read it out loud: <em>"The KL divergence of the encoder's distribution <b>compared to</b> the standard normal"</em></p>
+<div class="flex-center" style="gap:10px;margin:14px 0;text-align:center">
+  <div style="background:#fce4ec;border-radius:10px;padding:12px;min-width:140px">
+    <div style="font-size:20px">🟠</div>
+    <div style="font-size:13px;font-weight:700;color:#e91e63">q(z|x)</div>
+    <div style="font-size:12px;color:#555;margin-top:4px">The encoder says:<br>"Given this cat image,<br>z ~ N(μ=0.8, σ=0.9)"</div>
+  </div>
+  <div style="font-size:24px;color:#bbb">‖</div>
+  <div style="background:#eef1ff;border-radius:10px;padding:12px;min-width:140px">
+    <div style="font-size:20px">🔵</div>
+    <div style="font-size:13px;font-weight:700;color:#4f6ef7">p(z)</div>
+    <div style="font-size:12px;color:#555;margin-top:4px">The ideal target:<br>"z should be<br>N(0, 1)"</div>
+  </div>
+  <div style="font-size:24px;color:#bbb">=</div>
+  <div style="background:#e8f5e9;border-radius:10px;padding:12px;min-width:140px">
+    <div style="font-size:20px">📏</div>
+    <div style="font-size:13px;font-weight:700;color:#2e7d32">KL = 0.04</div>
+    <div style="font-size:12px;color:#555;margin-top:4px">Very close!<br>Good encoder ✅</div>
+  </div>
+</div>
+<div class="box blue">
+  <div class="box-title">💡 Why standard normal N(0,1)?</div>
+  <p>We want the latent space to be centered at 0, with spread of 1, so we can <b>freely sample from it at generation time</b>. If the encoder drifts, the sampled z values during generation won't match what the decoder learned.</p>
+</div>
+`; }},
+
+// ── Step 4: Full ELBO breakdown ──────────────────────
+{ render() { return `
+<div class="pill">Step 5 — Full ELBO</div>
+<h2>The ELBO — every piece, no mystery</h2>
+<div style="background:#1e1e2e;color:#cdd6f4;font-family:monospace;font-size:15px;padding:16px;border-radius:12px;text-align:center;margin-bottom:16px;line-height:2">
+  ELBO = <span style="color:#a6e3a1">E[ log p(x|z) ]</span> &nbsp;−&nbsp; <span style="color:#f38ba8">KL( q(z|x) ‖ p(z) )</span>
+</div>
+
+<div class="elbo-row">
+  <div class="elbo-symbol" style="background:#1e2e1e;color:#a6e3a1">E[ log p(x|z) ]</div>
+  <div class="elbo-explain">
+    <strong>On average</strong>, how likely is the real image x given the latent code z the encoder produced?<br>
+    = <em>"Does the decoder reconstruct the image well?"</em><br>
+    → We want this <b>big</b> (high = good reconstruction)
+  </div>
+</div>
+
+<div class="elbo-row">
+  <div class="elbo-symbol" style="background:#2e1e1e;color:#f38ba8">KL( q(z|x) ‖ p(z) )</div>
+  <div class="elbo-explain">
+    How different is the <strong>encoder's distribution</strong> from the <strong>target normal</strong>?<br>
+    = <em>"Is the encoder drifting too far from N(0,1)?"</em><br>
+    → We want this <b>small</b> (0 = perfect), so we subtract it
+  </div>
+</div>
+
+<div class="elbo-row">
+  <div class="elbo-symbol" style="background:#1a1a2e;color:#cba6f7">ELBO</div>
+  <div class="elbo-explain">
+    The combined score we <strong>maximize</strong> during training.<br>
+    Big ELBO = decoder reconstructs well AND latent space is organized.<br>
+    It's a lower bound on log p(x) — improving ELBO improves the model.
+  </div>
+</div>
+
+<div class="box green" style="margin-top:8px">
+  <div class="box-title">🗣️ The whole thing in one sentence</div>
+  <p><b>"Reward the model for reconstructing images accurately, AND punish it when the encoder's distribution drifts away from a standard normal bell curve. That balance is what makes a good VAE."</b></p>
+</div>
+<div class="box blue" style="margin-top:4px">
+  <div class="box-title">✅ You're ready to go back!</div>
+  <p>You now know what E, KL, q(z|x), p(z), and ‖ all mean. Section 4 of the main lesson will make complete sense now. 🎉</p>
+</div>
+`; }},
+
+];
+
+function updateKL() {
+  const mu  = parseFloat(document.getElementById('slMu')?.value  ?? 0);
+  const sig = parseFloat(document.getElementById('slSig')?.value ?? 1);
+  if (document.getElementById('muval'))  document.getElementById('muval').textContent  = mu.toFixed(1);
+  if (document.getElementById('sigval')) document.getElementById('sigval').textContent = sig.toFixed(1);
+  drawKL(mu, sig, 'klcanvas');
+
+  // numeric KL
+  function gauss(x,m,s){ return Math.exp(-0.5*((x-m)/s)**2)/(s*Math.sqrt(2*Math.PI)); }
+  let kl=0;
+  for(let x=-5;x<=5;x+=0.01){
+    const q=gauss(x,mu,sig), p=gauss(x,0,1);
+    if(q>1e-6&&p>1e-6) kl+=q*Math.log(q/p)*0.01;
+  }
+  kl = Math.max(0,kl);
+  const msg = document.getElementById('klmsg');
+  if (!msg) return;
+  if (kl < 0.05) {
+    msg.className='box green';
+    msg.innerHTML='<div class="box-title">💡 What you\'re seeing</div><p>✅ <b>KL ≈ 0</b> — the two curves are almost identical. The encoder has learned to match the target! The VAE loss for this term is nearly zero.</p>';
+  } else if (kl < 0.5) {
+    msg.className='box orange';
+    msg.innerHTML=`<div class="box-title">💡 What you're seeing</div><p>⚠️ <b>KL ≈ ${kl.toFixed(2)}</b> — the orange curve has shifted or stretched away from the blue. The VAE training will push it back toward N(0,1) to minimize this penalty.</p>`;
+  } else {
+    msg.className='box pink';
+    msg.innerHTML=`<div class="box-title">💡 What you're seeing</div><p>❌ <b>KL ≈ ${kl.toFixed(2)}</b> — very different! The encoder is producing a very different distribution. During training, this big KL penalty would force the encoder to correct itself and move back toward the blue curve.</p>`;
+  }
+}
+
+function render() {
+  const pct = Math.round(cur/(steps.length-1)*100);
+  document.getElementById('pb').style.width = pct+'%';
+  document.getElementById('plbl').textContent = `Step ${cur+1} of ${steps.length}`;
+  document.getElementById('main').innerHTML = steps[cur].render() + `
+    <div class="nav">
+      <button class="btn btn-s" onclick="go(-1)" ${cur===0?'disabled':''}>← Back</button>
+      <div class="sp"></div>
+      <button class="btn btn-p" onclick="go(1)" ${cur===steps.length-1?'disabled':''}>Next →</button>
+    </div>`;
+
+  // Post-render hooks
+  if (cur === 0) { pickedDice = []; renderDice(); }
+  if (cur === 2) { setTimeout(()=>{ drawKL(0,1,'klcanvas'); },50); }
+}
+
+function go(d) {
+  cur = Math.max(0, Math.min(steps.length-1, cur+d));
+  render();
+  document.getElementById('app').scrollIntoView({behavior:'smooth'});
+}
+
+render();
+</script>
