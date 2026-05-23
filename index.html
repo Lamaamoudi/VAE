@@ -62,6 +62,7 @@
             border-radius: 16px;
             padding: 2rem;
             margin-top: 1rem;
+            margin-bottom: 3rem;
             box-sizing: border-box;
         }
 
@@ -93,6 +94,9 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             top: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .card:hover {
@@ -108,12 +112,14 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 10px;
         }
 
         .card h2::after {
             content: "→";
             color: var(--accent-color);
             transition: transform 0.3s ease;
+            flex-shrink: 0;
         }
 
         .card:hover h2::after {
@@ -152,10 +158,15 @@
             <h2>VAE Interactive Lecture</h2>
             <p>An interactive guide covering the concepts, mathematics, and architecture of Variational Autoencoders.</p>
         </a>
+
+        <a href="VAE_Complete_Lesson.html" class="card">
+            <h2>VAE Complete Lesson</h2>
+            <p>A comprehensive, all-in-one lesson covering Variational Autoencoders from basic theory to implementation details.</p>
+        </a>
     </div>
 
     <div class="math-group-box">
-        <div class="group-title">📐 Mathematical Foundations</div>
+        <div class="group-title">📐 Mathematical Foundations & ELBO</div>
         
         <div class="math-grid">
             <a href="vae_math_intuition_explainer.html" class="card">
@@ -166,6 +177,16 @@
             <a href="elbo_deep_intuition.html" class="card">
                 <h2>ELBO Deep Intuition</h2>
                 <p>An in-depth breakdown of the Evidence Lower Bound (ELBO) and its crucial role in optimization theory.</p>
+            </a>
+
+            <a href="px_and_pz_explained.html" class="card">
+                <h2>p(x) & p(z) Explained</h2>
+                <p>Breaking down data distribution p(x) and latent prior distribution p(z) variables within generative modeling.</p>
+            </a>
+
+            <a href="elbo_three_confusions_fixed.html" class="card">
+                <h2>ELBO: 3 Confusions Fixed</h2>
+                <p>Addressing and clarifying the three most common pitfalls and misunderstandings students run into regarding ELBO derivations.</p>
             </a>
         </div>
     </div>
