@@ -1,0 +1,254 @@
+
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg-1,#f4f4f8); color:#1a1a1a; }
+#app { max-width:740px; margin:0 auto; padding:16px; }
+
+.pbar { background:#e0e0e0; border-radius:8px; height:5px; margin-bottom:6px; }
+.pbar-f { background:#4f6ef7; height:5px; border-radius:8px; transition:width .4s; }
+.plbl { font-size:12px; color:#888; text-align:right; margin-bottom:14px; }
+
+.card { background:#fff; border-radius:16px; padding:24px; border:1.5px solid #e8e8e8; }
+.pill { display:inline-flex; align-items:center; background:#eef1ff; color:#4f6ef7; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
+
+h2 { font-size:20px; font-weight:800; margin-bottom:10px; line-height:1.3; }
+p  { font-size:14px; line-height:1.8; color:#333; margin-bottom:10px; }
+
+.box { border-radius:12px; padding:14px 16px; margin:12px 0; }
+.blue   { background:#eef1ff; border-left:4px solid #4f6ef7; }
+.green  { background:#e8f5e9; border-left:4px solid #2e7d32; }
+.orange { background:#fff3e0; border-left:4px solid #f57c00; }
+.pink   { background:#fce4ec; border-left:4px solid #e91e63; }
+.bx-t { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; opacity:.6; margin-bottom:6px; }
+.box p { margin:0; }
+
+.code { background:#1e1e2e; color:#cdd6f4; font-family:'Courier New',monospace; font-size:14px; padding:14px 18px; border-radius:10px; margin:12px 0; line-height:1.9; overflow-x:auto; }
+
+/* Grid for side-by-side */
+.cols2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:12px 0; }
+.col-card { border-radius:10px; padding:14px; font-size:13px; line-height:1.7; }
+.col-card h4 { font-size:13px; font-weight:700; margin-bottom:8px; }
+
+/* Z-ball grid for integral intuition */
+.z-grid { display:flex; flex-wrap:wrap; gap:5px; margin:12px 0; padding:14px; background:#f8f8fc; border-radius:10px; }
+.z-ball { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; flex-shrink:0; color:#fff; }
+.z-ball:hover { transform:scale(1.15); }
+.z-ball.dim { opacity:.18; }
+.z-note { font-size:12px; color:#888; margin-top:4px; }
+
+/* Salary bar illustration */
+.salary-wrap { margin:14px 0; }
+.salary-bar { height:40px; border-radius:10px; display:flex; overflow:hidden; margin-bottom:6px; }
+.sal-tax  { background:#e53935; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; transition:width .4s; }
+.sal-home { background:#43a047; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; transition:width .4s; }
+.sal-labels { display:flex; justify-content:space-between; font-size:12px; color:#555; }
+.sal-total { font-size:13px; font-weight:600; margin-top:8px; }
+
+/* Number line for lower bound */
+.numline-wrap { margin:14px 0; position:relative; }
+.numline { height:4px; background:#ddd; border-radius:4px; position:relative; margin:30px 10px 10px; }
+.nl-point { width:14px; height:14px; border-radius:50%; position:absolute; top:-5px; transform:translateX(-50%); cursor:pointer; transition:left .3s; }
+.nl-label { position:absolute; top:-26px; transform:translateX(-50%); font-size:11px; font-weight:700; white-space:nowrap; }
+.nl-gap { position:absolute; top:0; height:4px; }
+
+/* Nav */
+.nav { display:flex; gap:10px; margin-top:20px; }
+.btn { padding:10px 20px; border-radius:9px; border:none; cursor:pointer; font-size:14px; font-weight:700; }
+.btn-p { background:#4f6ef7; color:#fff; }
+.btn-s { background:#ececec; color:#333; }
+.btn:disabled { opacity:.35; cursor:not-allowed; }
+.btn:hover:not(:disabled) { opacity:.85; }
+.sp { flex:1; }
+
+/* slider */
+input[type=range] { width:100%; margin:6px 0; }
+.sl-label { font-size:13px; font-weight:600; display:flex; justify-content:space-between; }
+
+.arrow-down { text-align:center; font-size:22px; color:#bbb; margin:4px 0; }
+</style>
+
+<div id="app">
+  <div class="pbar"><div class="pbar-f" id="pb" style="width:0%"></div></div>
+  <div class="plbl" id="plbl">Part 1 of 3</div>
+  <div class="card" id="main"></div>
+</div>
+
+<script>
+let cur = 0;
+const TOTAL = 3;
+
+/* ── helpers ─────────────────────────────────────────── */
+let zSelected = [];
+
+function initZGrid() {
+  zSelected = [];
+  const grid = document.getElementById('zgrid');
+  if (!grid) return;
+  const zvals = Array.from({length:30},(_,i)=>i);
+  grid.innerHTML = zvals.map(i=>{
+    const hue = (i*12)%360;
+    return `<div class="z-ball dim" id="zb${i}" style="background:hsl(${hue},60%,50%)" onclick="toggleZ(${i},${hue})">${i}</div>`;
+  }).join('') + `<div style="width:100%;margin-top:6px" class="z-note" id="znote">👆 Click z values to "check" them — that's what the integral does</div>`;
+}
+
+function toggleZ(i, hue) {
+  const ball = document.getElementById('zb'+i);
+  const idx = zSelected.indexOf(i);
+  if (idx>=0) { zSelected.splice(idx,1); ball.classList.add('dim'); }
+  else         { zSelected.push(i);       ball.classList.remove('dim'); }
+  const note = document.getElementById('znote');
+  if (!note) return;
+  const n = zSelected.length;
+  if (n===0) note.textContent = '👆 Click z values to "check" them — that\'s what the integral does';
+  else if (n<5) note.textContent = `You checked ${n} z value${n>1?'s':''}. The integral checks ALL 30 (and actually infinitely many). Exhausting! 😩`;
+  else if (n<15) note.textContent = `${n} checked so far... imagine checking infinitely many of these for every single training image. That\'s why it\'s intractable! 😤`;
+  else note.textContent = `${n}/30 checked. You can see how expensive this gets. The VAE trick: instead of checking ALL z, only check the z values that actually make sense for x. → That's q(z|x)!`;
+}
+
+function initSalary() {
+  updateSalary();
+}
+function updateSalary() {
+  const sl = document.getElementById('taxSlider');
+  if (!sl) return;
+  const tax = parseInt(sl.value);
+  const home = 100 - tax;
+  document.getElementById('salTax').style.width  = tax+'%';
+  document.getElementById('salHome').style.width = home+'%';
+  document.getElementById('salTaxLbl').textContent  = `KL = ${tax} (always ≥ 0)`;
+  document.getElementById('salHomeLbl').textContent = `L = ${home}`;
+  document.getElementById('salTotal').innerHTML = `<b>log p(x) = KL + L = ${tax} + ${home} = 100</b> (constant for fixed x)`;
+  const msg = document.getElementById('salMsg');
+  if (!msg) return;
+  if (tax===0) {
+    msg.className='box green'; msg.innerHTML='<div class="bx-t">🎯 Training goal achieved!</div><p>KL = 0 means the encoder perfectly matches the prior N(0,1). L = log p(x) — the ELBO equals the true log-likelihood! This is the best case.</p>';
+  } else if (tax<40) {
+    msg.className='box blue'; msg.innerHTML=`<div class="bx-t">💡 Good training</div><p>KL = ${tax} is small — the encoder is close to N(0,1). L = ${home} is close to log p(x). We're nearly maximizing the true likelihood.</p>`;
+  } else {
+    msg.className='box orange'; msg.innerHTML=`<div class="bx-t">⚠️ Early training</div><p>KL = ${tax} is large — the encoder has drifted. L = ${home} is much smaller than log p(x) = 100. We're losing ${tax} to "tax". Training will push KL down.</p>`;
+  }
+}
+
+/* ── Steps ───────────────────────────────────────────── */
+const steps = [
+
+/* ── Part 1: The integral ──────────────────────────────── */
+{ render() { return `
+<div class="pill">Part 1 of 3 — The ∫ integral</div>
+<h2>∫ p(z)p(x|z)dz — what this actually means</h2>
+<p>To understand why we can't just maximize p(x), you first need to understand what p(x) actually is. The formula is:</p>
+<div class="code">p<span style="color:#89b4fa">θ</span>(x) = <span style="color:#f38ba8">∫</span> p<span style="color:#89b4fa">θ</span>(z) · p<span style="color:#89b4fa">θ</span>(x|z) <span style="color:#f38ba8">dz</span>
+<span style="color:#6c7086">         ↑ this is just a "sum over all z"</span></div>
+
+<div class="box orange">
+  <div class="bx-t">🗣️ In plain English</div>
+  <p>"The probability of image x is the sum — across every possible latent code z — of: <b>how likely is z</b> × <b>how well does z explain x</b>."</p>
+</div>
+
+<p>Think of it like this: there are <b>infinitely many possible descriptions z</b> that could explain an image. Some are very likely to explain a cat photo. Others are not. To get p(x), you'd need to check ALL of them and add up their contributions.</p>
+
+<p style="font-weight:700;color:#4f6ef7">👇 Try clicking z values below to feel what "sum over all z" means:</p>
+<div class="z-grid" id="zgrid"></div>
+
+<div class="box pink" style="margin-top:8px">
+  <div class="bx-t">😱 Why this is intractable</div>
+  <p>In a real VAE, z is not 30 discrete values — it's a <b>continuous vector with infinite possible values</b>. You'd need to evaluate p(x|z) for every single one. That's physically impossible. So we need a smarter way.</p>
+</div>
+`; }},
+
+/* ── Part 2: Why q(z|x) ───────────────────────────────── */
+{ render() { return `
+<div class="pill">Part 2 of 3 — Why q(z|x)?</div>
+<h2>The smart shortcut: only check z values that matter</h2>
+<p>The real problem with the integral is that <b>most z values contribute almost nothing</b> to explaining image x. If x is a cat, then a z that encodes "airplane" contributes basically zero.</p>
+
+<div class="cols2">
+  <div class="col-card" style="background:#fff3e0;border:1.5px solid #f57c00">
+    <h4>❌ Naive approach (intractable)</h4>
+    <p>Check ALL z values equally: z=0, z=0.01, z=0.02, z=0.03... forever. 99% of them are irrelevant for this image. Total waste.</p>
+  </div>
+  <div class="col-card" style="background:#e8f5e9;border:1.5px solid #2e7d32">
+    <h4>✅ Smart approach — q(z|x)</h4>
+    <p>Only focus on z values that are <b>likely given x</b>. Given a cat image, only check z values in the "cat region" of latent space. Way more efficient.</p>
+  </div>
+</div>
+
+<div class="box blue" style="margin-top:4px">
+  <div class="bx-t">🗣️ The analogy</div>
+  <p>You lost your keys (you need to find z given x = "I can't open the door"). You could search <b>every room, every drawer, every pocket in the universe</b> (the integral). Or you could use common sense: "I usually leave them near the door or in my jacket" — that's <b>q(z|x)</b>. Focus your search where it's likely to pay off.</p>
+</div>
+
+<p><b>q(z|x)</b> is the encoder. It learns: "given this image x, which z values should I care about?" It outputs a Gaussian distribution centered on the most likely z values for that image.</p>
+
+<div class="arrow-down">↓</div>
+<div class="box green">
+  <div class="bx-t">💡 Key insight</div>
+  <p>We replace the impossible integral (check ALL z) with sampling from q(z|x) (check only <b>likely z</b>). Then we use the E[ ] — the average over those samples — instead of the full integral. Same spirit, actually tractable!</p>
+</div>
+`; }},
+
+/* ── Part 3: Lower bound ──────────────────────────────── */
+{ render() { return `
+<div class="pill">Part 3 of 3 — The Lower Bound</div>
+<h2>Why L ≤ log p(x) — the lower bound idea</h2>
+<p>This is the step where the lecture says "since KL ≥ 0, L is a lower bound." Let's build this up from scratch.</p>
+
+<p>We showed that:</p>
+<div class="code">log p(x) = <span style="color:#f38ba8">KL</span>(q(z|x) ‖ p(z))  +  <span style="color:#a6e3a1">L</span></div>
+
+<div class="box orange">
+  <div class="bx-t">💰 Salary analogy — drag to understand</div>
+  <p>Think of <b>log p(x)</b> as your total salary — fixed. It splits into two parts: <b>KL</b> (tax you pay) and <b>L</b> (take-home pay). Tax is always ≥ 0. So your take-home is always ≤ your full salary.</p>
+</div>
+
+<div class="salary-wrap">
+  <div class="salary-bar">
+    <div class="sal-tax"  id="salTax"  style="width:40%"><span id="salTaxLbl">KL</span></div>
+    <div class="sal-home" id="salHome" style="width:60%"><span id="salHomeLbl">L</span></div>
+  </div>
+  <div class="sl-label"><span>🔴 KL (tax)</span><span>🟢 L = ELBO (take-home)</span></div>
+  <input type="range" id="taxSlider" min="0" max="70" value="40" oninput="updateSalary()">
+  <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa"><span>KL=0 (ideal)</span><span>slide to change KL →</span><span>KL=70 (bad)</span></div>
+  <div class="sal-total" id="salTotal"></div>
+</div>
+
+<div id="salMsg" class="box blue"></div>
+
+<div class="box blue" style="margin-top:12px">
+  <div class="bx-t">🎯 Why we maximize L instead of log p(x)</div>
+  <p>
+  • log p(x) is what we <em>want</em> to maximize — but we can't compute it directly (intractable integral!)<br>
+  • L is always <b>≤ log p(x)</b> — it's a lower bound<br>
+  • Maximizing L pushes L up toward log p(x) (like keeping more of your salary by reducing tax)<br>
+  • When KL → 0, L → log p(x) exactly — <b>we've achieved the best possible model</b>
+  </p>
+</div>
+<div class="box green">
+  <div class="bx-t">✅ That's the whole trick</div>
+  <p>We can't maximize log p(x) directly. But we CAN maximize L (the ELBO) — it's computable, and pushing it up automatically improves the model, because log p(x) = L + KL and KL ≥ 0 always.</p>
+</div>
+`; }},
+];
+
+function render() {
+  const pct = Math.round(cur/(TOTAL-1)*100);
+  document.getElementById('pb').style.width = pct+'%';
+  document.getElementById('plbl').textContent = `Part ${cur+1} of ${TOTAL}`;
+  document.getElementById('main').innerHTML = steps[cur].render() + `
+  <div class="nav">
+    <button class="btn btn-s" onclick="go(-1)" ${cur===0?'disabled':''}>← Back</button>
+    <div class="sp"></div>
+    <button class="btn btn-p" onclick="go(1)" ${cur===TOTAL-1?'disabled':''}>Next →</button>
+  </div>`;
+  if (cur===0) setTimeout(initZGrid, 50);
+  if (cur===2) setTimeout(()=>{ initSalary(); updateSalary(); }, 50);
+}
+
+function go(d) {
+  cur = Math.max(0,Math.min(TOTAL-1,cur+d));
+  render();
+  document.getElementById('app').scrollIntoView({behavior:'smooth'});
+}
+
+render();
+</script>

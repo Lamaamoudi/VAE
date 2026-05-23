@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variational Autoencoders — Complete Interactive Lesson</title>
+<style>
+/* ═══════════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f2f8;
+  color: #1a1a1a;
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════════ */
+#shell {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
+
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+.top-header {
+  background: #1e2240;
+  color: #fff;
+  border-radius: 16px;
+  padding: 22px 28px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.top-header .logo { font-size: 42px; }
+.top-header h1 { font-size: 22px; font-weight: 800; line-height: 1.25; }
+.top-header p  { font-size: 13px; color: #a0aacc; margin-top: 4px; }
+
+/* ═══════════════════════════════════════════════════
+   PROGRESS
+═══════════════════════════════════════════════════ */
+.progress-wrap {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 18px;
+  border: 1.5px solid #e0e4f0;
+}
+.progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.progress-top .sec-label { font-size: 14px; font-weight: 700; }
+.progress-top .sec-count { font-size: 12px; color: #888; }
+.pbar-track { background: #e8eaf6; border-radius: 8px; height: 8px; }
+.pbar-fill  { background: linear-gradient(90deg,#4f6ef7,#7c9fff); height: 8px; border-radius: 8px; transition: width .4s ease; }
+.chapter-dots { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.chapter-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #dde; cursor: pointer; transition: all .2s;
+  flex-shrink: 0;
+}
+.chapter-dot.done    { background: #4f6ef7; }
+.chapter-dot.current { background: #4f6ef7; outline: 3px solid #a0b4ff; }
+
+/* ═══════════════════════════════════════════════════
+   SECTION CARD
+═══════════════════════════════════════════════════ */
+.section-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  border: 1.5px solid #e0e4f0;
+  margin-bottom: 18px;
+  min-height: 300px;
+}
+
+/* ═══════════════════════════════════════════════════
+   PILLS / TAGS
+═══════════════════════════════════════════════════ */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; padding: 4px 12px; border-radius: 20px;
+  margin-bottom: 14px;
+}
+.pill-concept { background: #eef1ff; color: #4f6ef7; }
+.pill-math    { background: #fce4ec; color: #c2185b; }
+.pill-quiz    { background: #e8f5e9; color: #2e7d32; }
+.pill-visual  { background: #fff3e0; color: #e65100; }
+.pill-insight { background: #f3e5f5; color: #7b1fa2; }
+.pill-summary { background: #e0f2f1; color: #00695c; }
+
+/* ═══════════════════════════════════════════════════
+   TYPOGRAPHY
+═══════════════════════════════════════════════════ */
+h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; line-height: 1.3; }
+h3 { font-size: 16px; font-weight: 700; margin: 14px 0 8px; }
+p  { font-size: 14px; line-height: 1.85; color: #333; margin-bottom: 10px; }
+p:last-child { margin-bottom: 0; }
+.big { font-size: 16px; font-weight: 600; }
+.mono { font-family: 'Courier New', monospace; }
+
+/* ═══════════════════════════════════════════════════
+   CALLOUT BOXES
+═══════════════════════════════════════════════════ */
+.box { border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
+.box-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; opacity: .65; margin-bottom: 6px; }
+.box p { margin: 0; }
+.b-blue   { background: #eef1ff; border-left: 4px solid #4f6ef7; }
+.b-green  { background: #e8f5e9; border-left: 4px solid #2e7d32; }
+.b-orange { background: #fff3e0; border-left: 4px solid #f57c00; }
+.b-pink   { background: #fce4ec; border-left: 4px solid #e91e63; }
+.b-purple { background: #f3e5f5; border-left: 4px solid #8e24aa; }
+.b-red    { background: #ffebee; border-left: 4px solid #e53935; }
+
+/* ═══════════════════════════════════════════════════
+   CODE BLOCK
+═══════════════════════════════════════════════════ */
+.code {
+  background: #1e1e2e; color: #cdd6f4;
+  font-family: 'Courier New', monospace; font-size: 14px;
+  padding: 16px 20px; border-radius: 12px;
+  margin: 12px 0; line-height: 1.9; overflow-x: auto;
+}
+.c-blue   { color: #89b4fa; }
+.c-green  { color: #a6e3a1; }
+.c-red    { color: #f38ba8; }
+.c-purple { color: #cba6f7; }
+.c-grey   { color: #6c7086; }
+
+/* ═══════════════════════════════════════════════════
+   FLOW DIAGRAM
+═══════════════════════════════════════════════════ */
+.flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 14px 0; }
+.flow-box {
+  background: #fff; border: 2px solid #4f6ef7; border-radius: 10px;
+  padding: 8px 14px; font-size: 13px; font-weight: 600; text-align: center; min-width: 80px;
+}
+.flow-box.orange { border-color: #e67e22; }
+.flow-box.green  { border-color: #2e7d32; background: #f1f8f1; }
+.flow-box.red    { border-color: #c2185b; background: #fce4ec; }
+.flow-box.purple { border-color: #8e24aa; background: #f3e5f5; }
+.flow-box .sub   { font-size: 11px; color: #888; font-weight: 400; display: block; margin-top: 2px; }
+.arrow { font-size: 20px; color: #bbb; padding: 0 2px; }
+
+/* ═══════════════════════════════════════════════════
+   GRID LAYOUTS
+═══════════════════════════════════════════════════ */
+.cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.cols3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0; }
+.col-card { border-radius: 10px; padding: 14px; font-size: 13px; line-height: 1.7; }
+.col-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+
+/* ═══════════════════════════════════════════════════
+   QUIZ
+═══════════════════════════════════════════════════ */
+.quiz-q { font-size: 15px; font-weight: 700; margin-bottom: 12px; line-height: 1.5; }
+.quiz-opts { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt {
+  padding: 11px 16px; border-radius: 10px; border: 2px solid #e0e4f0;
+  cursor: pointer; font-size: 14px; background: #fff; text-align: left;
+  transition: all .15s;
+}
+.quiz-opt:hover:not(.done) { border-color: #4f6ef7; background: #f0f2ff; }
+.quiz-opt.correct { border-color: #2e7d32; background: #e8f5e9; font-weight: 700; color: #1b5e20; }
+.quiz-opt.wrong   { border-color: #c62828; background: #ffebee; color: #b71c1c; }
+.quiz-fb {
+  margin-top: 12px; padding: 12px 16px; border-radius: 10px;
+  font-size: 14px; font-weight: 500; display: none;
+}
+.fb-ok  { background: #e8f5e9; color: #1b5e20; }
+.fb-bad { background: #fff3e0; color: #bf360c; }
+
+/* ═══════════════════════════════════════════════════
+   INTERACTIVE ELEMENTS
+═══════════════════════════════════════════════════ */
+canvas { display: block; border-radius: 10px; width: 100%; }
+
+.slider-wrap { margin: 10px 0; }
+.slider-wrap label { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; margin-bottom: 4px; }
+input[type=range] { width: 100%; accent-color: #4f6ef7; }
+
+/* Z ball grid */
+.z-grid { display: flex; flex-wrap: wrap; gap: 5px; padding: 14px; background: #f8f8fc; border-radius: 10px; margin: 12px 0; }
+.z-ball {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: all .2s; flex-shrink: 0; color: #fff;
+}
+.z-ball:hover { transform: scale(1.15); }
+.z-ball.dim   { opacity: .18; }
+
+/* Dice */
+.dice-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 12px 0; }
+.die {
+  width: 46px; height: 46px; border-radius: 10px;
+  border: 2px solid #e0e0e0; display: flex; align-items: center;
+  justify-content: center; font-size: 24px; cursor: pointer;
+  background: #fff; transition: all .15s; user-select: none;
+}
+.die:hover       { border-color: #4f6ef7; background: #eef1ff; transform: scale(1.1); }
+.die.picked      { border-color: #4f6ef7; background: #eef1ff; }
+.avg-box {
+  text-align: center; font-size: 24px; font-weight: 800;
+  padding: 12px; background: #f8f8fc; border-radius: 10px; margin-top: 10px;
+}
+.avg-sub { font-size: 12px; color: #888; font-weight: 400; display: block; margin-top: 2px; }
+
+/* Salary bar */
+.salary-bar { height: 40px; border-radius: 10px; display: flex; overflow: hidden; margin: 10px 0; }
+.sal-kl   { background: #e53935; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; transition: width .4s; min-width: 30px; }
+.sal-elbo { background: #43a047; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; transition: width .4s; min-width: 30px; }
+
+/* Sample images */
+.sample-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin: 12px 0; }
+.img-tile {
+  width: 72px; text-align: center; flex-shrink: 0;
+}
+.img-face {
+  width: 72px; height: 72px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; border: 2px solid; margin-bottom: 5px;
+}
+.img-label { font-size: 11px; font-weight: 700; }
+
+/* Z vector */
+.z-vector { display: flex; gap: 4px; flex-wrap: wrap; margin: 10px 0; }
+.z-cell {
+  width: 40px; height: 40px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+
+/* Notation table */
+.notation-table { width: 100%; margin: 12px 0; }
+.notation-row { display: flex; align-items: flex-start; gap: 14px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.notation-row:last-child { border-bottom: none; }
+.notation-sym {
+  background: #1e1e2e; color: #89b4fa; font-family: 'Courier New', monospace;
+  font-size: 14px; font-weight: 700; padding: 7px 12px; border-radius: 8px;
+  min-width: 100px; text-align: center; flex-shrink: 0;
+}
+.notation-txt { font-size: 14px; color: #333; line-height: 1.7; flex: 1; }
+.notation-txt strong { color: #4f6ef7; }
+
+/* Compare table */
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0; }
+.cmp-table th { background: #f0f2f8; padding: 10px 14px; text-align: left; font-weight: 700; }
+.cmp-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; line-height: 1.65; }
+.cmp-table tr:last-child td { border-bottom: none; }
+
+/* Checklist */
+.checklist { list-style: none; padding: 0; }
+.checklist li { display: flex; gap: 10px; padding: 7px 0; font-size: 14px; line-height: 1.6; border-bottom: 1px solid #f5f5f5; }
+.checklist li:last-child { border-bottom: none; }
+.checklist li::before { content: "✅"; flex-shrink: 0; }
+
+/* NAV */
+.nav-row {
+  display: flex; gap: 10px; margin-top: 24px;
+  align-items: center; padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+.btn {
+  padding: 11px 24px; border-radius: 10px; border: none;
+  cursor: pointer; font-size: 14px; font-weight: 700; transition: opacity .2s;
+}
+.btn-primary   { background: #4f6ef7; color: #fff; }
+.btn-secondary { background: #eceff8; color: #333; }
+.btn:disabled  { opacity: .35; cursor: not-allowed; }
+.btn:hover:not(:disabled) { opacity: .85; }
+.nav-spacer { flex: 1; }
+
+/* Score card */
+.score-ring {
+  width: 90px; height: 90px; border-radius: 50%;
+  background: linear-gradient(135deg,#4f6ef7,#7c9fff);
+  color: #fff; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  margin: 0 auto 16px; font-size: 26px; font-weight: 800;
+}
+.score-ring small { font-size: 11px; font-weight: 400; }
+
+/* Responsive */
+@media (max-width: 540px) {
+  .cols2, .cols3 { grid-template-columns: 1fr; }
+  .top-header h1 { font-size: 17px; }
+}
+</style>
+</head>
+<body>
+<div id="shell">
+
+  <!-- HEADER -->
+  <div class="top-header">
+    <div class="logo">🧠</div>
+    <div>
+      <h1>Variational Autoencoders — Complete Interactive Lesson</h1>
+      <p>KAUST Academy · Day 4 · Naeemullah Khan &nbsp;|&nbsp; Build real understanding, step by step</p>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap">
+    <div class="progress-top">
+      <span class="sec-label" id="sec-label">Section 1 of 15</span>
+      <span class="sec-count" id="sec-count">0% complete</span>
+    </div>
+    <div class="pbar-track"><div class="pbar-fill" id="pbar" style="width:0%"></div></div>
+    <div class="chapter-dots" id="dots"></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="section-card" id="content"></div>
+
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+let cur = 0;
+let answered = {};   // quiz answers
+let zPicked  = [];   // z-ball state
+let dicePicked = []; // dice state
+
+/* ═══════════════════════════════════════════════════
+   SECTIONS
+═══════════════════════════════════════════════════ */
+const sections = [
+
+/* ── 0  WELCOME ──────────────────────────────────── */
+{
+  label: 'Welcome', pill: 'concept',
+  html() { return `
+    <div class="pill pill-concept">📌 Welcome</div>
+    <h2>Your Complete VAE Guide — Everything in One Place</h2>
+    <p>This lesson combines the full lecture, all intuition-building explanations, and every interactive exercise into one smooth journey. No jumping between files.</p>
+    <div class="box b-blue">
+      <div class="box-title">🗺️ What you'll master</div>
+      <p>
+        <b>①</b> What p(x) and p(z) actually mean<br>
+        <b>②</b> Why regular Autoencoders can't generate new data<br>
+        <b>③</b> How VAEs fix the problem with probabilistic encoding<br>
+        <b>④</b> The ∫ integral, why it's intractable, and the q(z|x) shortcut<br>
+        <b>⑤</b> What ELBO is and why we maximize it instead of p(x)<br>
+        <b>⑥</b> The Reparameterization Trick — how backprop works through randomness<br>
+        <b>⑦</b> The full loss function, variants (β-VAE, CVAE), and limitations
+      </p>
+    </div>
+    <p>Hit <b>Next</b> whenever you're ready. Every section has a quiz or interactive to keep you active. 🚀</p>
+  `; }
+},
+
+/* ── 1  WHAT IS p(x) ─────────────────────────────── */
+{
+  label: 'p(x)', pill: 'concept',
+  html() { return `
+    <div class="pill pill-concept">📌 Foundation</div>
+    <h2>🖼️ What is p(x) — probability of an image?</h2>
+    <p><b>x is an image</b> — for example a 28×28 grid of pixel values. <b>p(x)</b> is simply: <em>"Among all possible images that could ever exist, how likely is this particular one?"</em></p>
+    <div class="box b-orange">
+      <div class="box-title">🎲 Think of it this way</div>
+      <p>A 28×28 image has 784 pixels. If you set each pixel randomly, you'd almost always get noise — never a digit. Real, meaningful images occupy a tiny, specific slice of all possibilities. <b>p(x) is high for real images, near-zero for random noise.</b></p>
+    </div>
+    <div class="sample-row">
+      <div class="img-tile">
+        <div class="img-face" style="border-color:#2e7d32;background:#e8f5e9">🐱</div>
+        <div class="img-label" style="color:#2e7d32">p(x) = HIGH<br>real cat ✅</div>
+      </div>
+      <div class="img-tile">
+        <div class="img-face" style="border-color:#2e7d32;background:#e8f5e9">7️⃣</div>
+        <div class="img-label" style="color:#2e7d32">p(x) = HIGH<br>real digit ✅</div>
+      </div>
+      <div class="img-tile">
+        <div class="img-face" style="border-color:#e53935;background:#ffebee;font-size:14px;color:#bbb">▓▒░▒▓<br>░▓▒░▒<br>▒░▓▒░</div>
+        <div class="img-label" style="color:#e53935">p(x) ≈ 0<br>noise ❌</div>
+      </div>
+      <div class="img-tile">
+        <div class="img-face" style="border-color:#e53935;background:#ffebee">🌀</div>
+        <div class="img-label" style="color:#e53935">p(x) ≈ 0<br>meaningless ❌</div>
+      </div>
+    </div>
+    <div class="box b-blue">
+      <div class="box-title">🎯 Why it matters in VAE training</div>
+      <p>Training a VAE means teaching the model to assign <b>high p(x)</b> to every image in our dataset — "yes, all these images make sense!" But computing p(x) directly requires an intractable integral. We'll come back to this in Section 6.</p>
+    </div>
+  `; }
+},
+
+/* ── 2  WHAT IS p(z) ─────────────────────────────── */
+{
+  label: 'p(z)', pill: 'concept',
+  html() { return `
+    <div class="pill pill-concept">📌 Foundation</div>
+    <h2>🎛️ What is p(z) — probability of a latent code?</h2>
+    <p><b>z is the hidden description</b> — a short list of numbers that captures the essence of an image. p(z) asks: <em>"What should these description numbers look like in general, before we even look at any image?"</em></p>
+    <div class="box b-pink">
+      <div class="box-title">🧠 Key — we CHOOSE p(z). It's a design decision.</div>
+      <p>In a VAE, we <b>decide</b> that p(z) = N(0,1) — a standard normal (Gaussian) distribution. We choose this because it's simple, continuous, and easy to sample from.</p>
+    </div>
+    <p>Here's what a real z vector looks like — a list of numbers, all roughly between -3 and 3:</p>
+    <div class="z-vector" id="zvec"></div>
+    <canvas id="pzCanvas" height="90" width="740"></canvas>
+    <p style="font-size:12px;color:#888;text-align:center;margin-top:4px">p(z) = standard normal bell curve. Values near 0 are common; extremes are rare.</p>
+    <div class="box b-green">
+      <div class="box-title">💡 Why standard normal N(0,1) specifically?</div>
+      <p>At <b>generation time</b>, we want to freely sample a random z and decode it into a new image. If p(z) = N(0,1), we just pick random numbers from a standard normal and feed them to the decoder. Simple and clean!</p>
+    </div>
+    <table class="cmp-table" style="margin-top:14px">
+      <tr><th></th><th style="color:#4f6ef7">p(x)</th><th style="color:#f57c00">p(z)</th></tr>
+      <tr><td><b>What is it?</b></td><td>Probability of an image</td><td>Probability of a latent code</td></tr>
+      <tr><td><b>Do we choose it?</b></td><td>❌ Determined by real data</td><td>✅ We choose N(0,1)</td></tr>
+      <tr><td><b>Can we compute it?</b></td><td>❌ Requires intractable integral</td><td>✅ Easy Gaussian formula</td></tr>
+    </table>
+  `; },
+  onEnter() { setTimeout(() => { buildZVec(); drawPZ(); }, 60); }
+},
+
+/* ── 3  PROBLEM WITH AEs ─────────────────────────── */
+{
+  label: 'AE Problem', pill: 'concept',
+  html() { return `
+    <div class="pill pill-concept">📌 The Problem</div>
+    <h2>🔁 Why Regular Autoencoders Can't Generate New Data</h2>
+    <p>A regular autoencoder maps each input image to a <b>single fixed point z</b>. It minimises the reconstruction error ||x − x̂||².</p>
+    <div class="flow">
+      <div class="flow-box" style="background:#eef1ff">Input x<span class="sub">e.g. a cat image</span></div>
+      <div class="arrow">→</div>
+      <div class="flow-box orange">Encoder<span class="sub">neural net</span></div>
+      <div class="arrow">→</div>
+      <div class="flow-box red">z (fixed point!)<span class="sub">e.g. [0.8, -0.3, ...]</span></div>
+      <div class="arrow">→</div>
+      <div class="flow-box orange">Decoder<span class="sub">neural net</span></div>
+      <div class="arrow">→</div>
+      <div class="flow-box" style="background:#eef1ff">x̂<span class="sub">reconstruction</span></div>
+    </div>
+    <div class="box b-red">
+      <div class="box-title">⚠️ The core problem</div>
+      <p>The latent space is <b>too discrete</b>. The model only learned specific isolated points — one per training image. The vast empty space between them is a "dead zone." If you randomly sample a z from that dead zone, the decoder outputs garbage.</p>
+    </div>
+    <div class="cols2">
+      <div class="col-card" style="background:#ffebee;border:1.5px solid #e53935">
+        <h4>❌ AE latent space</h4>
+        <p>Sparse isolated clusters. Gaps = untrained dead zones. Random sampling almost always lands in a dead zone → garbage output.</p>
+      </div>
+      <div class="col-card" style="background:#e8f5e9;border:1.5px solid #2e7d32">
+        <h4>✅ VAE latent space</h4>
+        <p>Smooth continuous distributions. Every point decodes to something meaningful. You can sample freely and interpolate between classes!</p>
+      </div>
+    </div>
+    <div class="box b-blue">
+      <div class="box-title">💡 VAE's fix</div>
+      <p>Instead of encoding x to a <b>single point</b>, encode it to a <b>distribution</b> — a Gaussian with mean μ and standard deviation σ. This fills the latent space continuously.</p>
+    </div>
+  `; }
+},
+
+/* ── 4  VAE KEY IDEA ─────────────────────────────── */
+{
+  label: 'VAE Idea', pill: 'concept',
+  html() { return `
+    <div class="pill pill-concept">📌 The Big Idea</div>
+    <h2>💡 The VAE Fix: Probabilistic Encoding</h2>
+    <p>The encoder no longer outputs a fixed point z. Instead it outputs the <b>parameters of a Gaussian distribution</b>: a mean vector μ(x) and standard deviation σ(x).</p>
+    <div class="flow">
+      <div class="flow-box" style="background:#eef1ff">Input x</div>
+      <div class="arrow">→</div>
+      <div class="flow-box orange">Encoder</div>
+      <div class="arrow">→</div>
+      <div style="text-align:center">
+        <div class="flow-box purple" style="margin-bottom:6px">μ(x)<span class="sub">mean vector</span></div>
+        <div class="flow-box purple">σ(x)<span class="sub">std dev vector</span></div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="flow-box red">Sample z<span class="sub">z ~ N(μ, σ²)</span></div>
+      <div class="arrow">→</div>
+      <div class="flow-box green">Decoder</div>
+      <div class="arrow">→</div>
+      <div class="flow-box" style="background:#eef1ff">x̂</div>
+    </div>
+    <div class="notation-table">
+      <div class="notation-row">
+        <div class="notation-sym">q(z|x)</div>
+        <div class="notation-txt"><strong>Encoder's distribution</strong> — "Given image x, what distribution over z should I use?" Outputs N(μ(x), σ(x)²).</div>
+      </div>
+      <div class="notation-row">
+        <div class="notation-sym">p(x|z)</div>
+        <div class="notation-txt"><strong>Decoder's distribution</strong> — "Given latent code z, how likely is image x?" Reconstructs x from z.</div>
+      </div>
+      <div class="notation-row">
+        <div class="notation-sym">p(z)</div>
+        <div class="notation-txt"><strong>Prior</strong> — Our target for z: standard normal N(0, I). We enforce this during training.</div>
+      </div>
+    </div>
+    <div class="box b-green">
+      <div class="box-title">🎯 Why this works</div>
+      <p>We force q(z|x) to stay close to N(0,1) during training. This fills the whole latent space with meaningful distributions — no dead zones. At generation time, just sample z ~ N(0,1) and decode!</p>
+    </div>
+  `; }
+},
+
+/* ── 5  QUIZ 1 ───────────────────────────────────── */
+{
+  label: 'Quiz 1', pill: 'quiz',
+  quiz: {
+    q: 'A regular autoencoder encodes every training image to a fixed point z. Why does this make generation fail?',
+    opts: [
+      'The decoder is too small to reconstruct images',
+      'The latent space has dead zones — points between learned embeddings were never trained, so random sampling gives garbage output',
+      'The encoder uses too many parameters and overfits',
+      'The model cannot handle continuous pixel values'
+    ],
+    correct: 1,
+    fb: '✅ Correct! The AE only learns isolated points — one per training image. The gaps between them are dead zones. A VAE fixes this by encoding distributions that overlap and fill the entire space.'
+  }
+},
+
+/* ── 6  THE INTEGRAL PROBLEM ─────────────────────── */
+{
+  label: '∫ Integral', pill: 'math',
+  html() { return `
+    <div class="pill pill-math">📐 The Math Problem</div>
+    <h2>∫ p(z)p(x|z)dz — why we can't just compute p(x)</h2>
+    <p>We want to train by maximizing p(x) for every training image. But what <em>is</em> p(x)?</p>
+    <div class="code">p<span class="c-blue">θ</span>(x) = <span class="c-red">∫</span> p<span class="c-blue">θ</span>(z) · p<span class="c-blue">θ</span>(x|z) <span class="c-red">dz</span>
+<span class="c-grey">         ↑ just a "sum over every possible z"</span></div>
+    <div class="box b-orange">
+      <div class="box-title">🗣️ Plain English</div>
+      <p>"The probability of image x equals: for every possible description z, how likely is that z × how well does z explain x — all summed up."</p>
+    </div>
+    <p style="font-weight:700;color:#4f6ef7">👇 Click z-balls below to feel what "sum over all z" means:</p>
+    <div class="z-grid" id="zGrid"></div>
+    <div class="box b-red" style="margin-top:8px">
+      <div class="box-title">😱 Why it's intractable</div>
+      <p>In a real VAE, z is not 30 values — it's a <b>continuous vector with infinitely many possible values</b>. We'd need to evaluate p(x|z) at every single one. That's physically impossible to compute. We need a smarter way.</p>
+    </div>
+  `; },
+  onEnter() { setTimeout(initZGrid, 60); }
+},
+
+/* ── 7  WHY q(z|x) ───────────────────────────────── */
+{
+  label: 'q(z|x)', pill: 'math',
+  html() { return `
+    <div class="pill pill-math">📐 The Smart Shortcut</div>
+    <h2>🔑 Why We Introduce q(z|x)</h2>
+    <p>The integral is intractable because it checks <b>every possible z equally</b> — even z values that are completely irrelevant for the image x. Most of them contribute basically zero.</p>
+    <div class="cols2">
+      <div class="col-card" style="background:#ffebee;border:1.5px solid #e53935">
+        <h4>❌ Naive: check ALL z</h4>
+        <p>For a cat image, also check z values that encode "airplane", "ocean", "number 7"... infinitely many. 99.9% contribute nothing.</p>
+      </div>
+      <div class="col-card" style="background:#e8f5e9;border:1.5px solid #2e7d32">
+        <h4>✅ Smart: q(z|x)</h4>
+        <p>Only focus on z values that <b>actually make sense given image x</b>. For a cat, only explore the "cat region" of latent space.</p>
+      </div>
+    </div>
+    <div class="box b-blue">
+      <div class="box-title">🔑 The lost-keys analogy</div>
+      <p>You lost your keys (you need z given x). You <em>could</em> search every location in the universe — every room, every drawer everywhere (= the integral). Or you use common sense: "I usually leave them near the door or in my jacket" — that's <b>q(z|x)</b>. Focus on where it's likely to pay off.</p>
+    </div>
+    <p><b>q(z|x)</b> is the encoder. It learns which z values to care about for each specific x. It outputs a Gaussian centred on the most likely z values for that image.</p>
+    <div class="box b-green">
+      <div class="box-title">💡 The replacement</div>
+      <p>We replace the impossible integral ∫ (check ALL z) with the expected value <b>E[ ]</b> under q(z|x) — average over only the <em>likely</em> z values. Same spirit, actually tractable!</p>
+    </div>
+    <div class="box b-purple">
+      <div class="box-title">📖 What E[ ] means</div>
+      <p><b>E[something]</b> = the <b>average</b> of that something. E[log p(x|z)] = "on average, across different z values sampled by the encoder, how well does the decoder reconstruct x?"</p>
+    </div>
+  `; }
+},
+
+/* ── 8  E[] INTERACTIVE ──────────────────────────── */
+{
+  label: 'E[ ] Avg', pill: 'visual',
+  html() { return `
+    <div class="pill pill-visual">🎲 Interactive</div>
+    <h2>E[ ] = Average — feel it with dice</h2>
+    <p>In the ELBO, E[log p(x|z)] means: take many z samples from q(z|x), compute log p(x|z) for each, then <b>average them</b>. The E is that average. Nothing more.</p>
+    <p>Click any dice below to include them in your average. That's exactly what E does:</p>
+    <div class="dice-row" id="diceRow"></div>
+    <div class="avg-box" id="avgBox">— <span class="avg-sub">pick some dice to average</span></div>
+    <div class="box b-blue" style="margin-top:14px">
+      <div class="box-title">💡 In a VAE</div>
+      <p>Instead of dice we average <em>log p(x|z)</em> over many z samples drawn from q(z|x). This is how we estimate the reconstruction quality without computing the intractable integral.</p>
+    </div>
+  `; },
+  onEnter() { setTimeout(initDice, 60); }
+},
+
+/* ── 9  VARIATIONAL INFERENCE & ELBO ─────────────── */
+{
+  label: 'ELBO', pill: 'math',
+  html() { return `
+    <div class="pill pill-math">📐 Core Math</div>
+    <h2>📐 Variational Inference & the ELBO</h2>
+    <p>We want to minimize the gap between q(z|x) and the true posterior p(z|x). We measure this gap with <b>KL divergence</b> — which asks "how different are two distributions?"</p>
+    <div class="box b-orange">
+      <div class="box-title">🗣️ KL divergence in one sentence</div>
+      <p><b>KL(q ‖ p)</b> = "how far is the shape of q from the shape of p?" It's always ≥ 0. When the two distributions are identical, KL = 0.</p>
+    </div>
+    <p>Through rearranging the math (expanding KL using Bayes' rule), we get:</p>
+    <div class="code">log p(x) = <span class="c-red">KL</span>(q(z|x) ‖ p(z|x))  +  <span class="c-green">L</span>
+<span class="c-grey">              ↑ gap from true posterior     ↑ ELBO</span></div>
+    <p>Since <b>KL ≥ 0 always</b>, rearranging gives:</p>
+    <div class="code"><span class="c-green">L</span>  ≤  log p(x)
+<span class="c-grey">↑ L is always ≤ the true log-likelihood → "lower bound"</span></div>
+    <div class="box b-blue">
+      <div class="box-title">💰 The salary analogy</div>
+      <p>Think of log p(x) as your <b>total salary</b> (fixed). KL is the <b>tax</b> you pay (always ≥ 0). L (ELBO) is your <b>take-home pay</b>. You can never take home more than your salary. <b>Maximising L = minimising tax = getting as close to your full salary as possible.</b></p>
+    </div>
+    <p>We maximise L (ELBO) because: ① we can compute it, ② it indirectly maximises log p(x), ③ when KL→0 then L→log p(x) exactly.</p>
+  `; }
+},
+
+/* ── 10  LOWER BOUND SLIDER ──────────────────────── */
+{
+  label: 'Lower Bound', pill: 'visual',
+  html() { return `
+    <div class="pill pill-visual">🎚️ Interactive</div>
+    <h2>💰 The Lower Bound — drag to understand</h2>
+    <p>log p(x) = KL + L. Since KL ≥ 0, L is always ≤ log p(x). Drag the slider to see how training works:</p>
+    <div class="salary-bar">
+      <div class="sal-kl"   id="salKL"   style="width:45%">KL</div>
+      <div class="sal-elbo" id="salELBO" style="width:55%">L (ELBO)</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:8px">
+      <span>🔴 KL — regularisation cost</span>
+      <span>🟢 L (ELBO) — what we maximise</span>
+    </div>
+    <div class="slider-wrap">
+      <label>KL size <span id="klVal">45</span>% &nbsp; (0 = perfect, high = bad)</label>
+      <input type="range" id="klSlider" min="0" max="70" value="45" oninput="updateSalary()">
+    </div>
+    <div style="font-size:14px;font-weight:600;margin:8px 0" id="salTotal"></div>
+    <div id="salMsg" class="box b-blue"></div>
+    <div class="box b-blue" style="margin-top:12px">
+      <div class="box-title">🎯 The training goal</div>
+      <p>Every gradient step tries to <b>push L up</b> (increase ELBO). Since log p(x) = KL + L and log p(x) is fixed, pushing L up automatically shrinks KL. When KL = 0: L = log p(x) — perfect model! In practice KL never reaches exactly 0, but training gets it small.</p>
+    </div>
+  `; },
+  onEnter() { setTimeout(() => { updateSalary(); }, 60); }
+},
+
+/* ── 11  ELBO FULL BREAKDOWN ─────────────────────── */
+{
+  label: 'ELBO Breakdown', pill: 'math',
+  html() { return `
+    <div class="pill pill-math">📐 ELBO Decoded</div>
+    <h2>The ELBO — every symbol, plain English</h2>
+    <div class="code">ELBO = <span class="c-green">E<sub>q(z|x)</sub>[ log p(x|z) ]</span>  −  <span class="c-red">KL( q(z|x) ‖ p(z) )</span></div>
+    <div class="notation-table">
+      <div class="notation-row">
+        <div class="notation-sym" style="background:#1e2e1e;color:#a6e3a1">E[log p(x|z)]</div>
+        <div class="notation-txt"><strong>Reconstruction term.</strong> On average, how likely is the real image x given the latent code z the encoder sampled? → "Does the decoder rebuild x accurately?" We want this <b>BIG</b>.</div>
+      </div>
+      <div class="notation-row">
+        <div class="notation-sym" style="background:#2e1e1e;color:#f38ba8">KL(q(z|x)‖p(z))</div>
+        <div class="notation-txt"><strong>Regularisation term.</strong> How different is the encoder's distribution from the target N(0,1)? → "Is the latent space staying organised?" We want this <b>SMALL</b>, so we subtract it.</div>
+      </div>
+      <div class="notation-row">
+        <div class="notation-sym" style="color:#cba6f7">‖</div>
+        <div class="notation-txt">Just means <strong>"compared to"</strong>. KL(q ‖ p) = "how different is q from p?"</div>
+      </div>
+    </div>
+    <div class="box b-green">
+      <div class="box-title">🗣️ The whole ELBO in one sentence</div>
+      <p><b>"Reward the model for reconstructing images accurately, AND penalise it when the encoder's distribution drifts away from N(0,1). That balance is what creates a good VAE."</b></p>
+    </div>
+    <div class="box b-orange">
+      <div class="box-title">⚠️ The tension between the two terms</div>
+      <p>Reconstruction pushes the encoder to be very specific per image (spread out μ values). KL pushes it to stay close to N(0,1) (keep everything near zero). This tension creates a smooth, organised latent space where similar images cluster together.</p>
+    </div>
+  `; }
+},
+
+/* ── 12  QUIZ 2 ──────────────────────────────────── */
+{
+  label: 'Quiz 2', pill: 'quiz',
+  quiz: {
+    q: 'In the ELBO = E[log p(x|z)] − KL(q(z|x) ‖ p(z)), what does the KL term do during training?',
+    opts: [
+      'It measures how blurry the reconstructed images are',
+      'It penalises the encoder when its distribution q(z|x) drifts far from the standard normal N(0,1), keeping the latent space organised',
+      'It computes the pixel-level reconstruction error between x and x̂',
+      'It controls the learning rate of the optimiser'
+    ],
+    correct: 1,
+    fb: '✅ Exactly right! The KL term is the regulariser. It keeps the encoder honest — its distributions must stay close to N(0,1) so that the entire latent space remains smooth and sampleable at generation time.'
+  }
+},
+
+/* ── 13  REPARAMETERISATION TRICK ────────────────── */
+{
+  label: 'Reparam Trick', pill: 'concept',
+  html() { return `
+    <div class="pill pill-concept">💡 Key Trick</div>
+    <h2>🎲 The Reparameterisation Trick</h2>
+    <p>We train VAEs with gradient descent — which means backpropagating gradients through every operation. But there's a problem: the encoder <em>samples</em> z from N(μ, σ²). Sampling is random, and you <b>can't backpropagate through randomness</b>.</p>
+    <div class="cols2">
+      <div class="col-card" style="background:#ffebee;border:1.5px solid #e53935">
+        <h4>❌ Original — backprop blocked</h4>
+        <p>z ~ N(μ(x), σ(x)²)</p>
+        <p>The random node z blocks gradient flow. We can't improve μ and σ because gradients can't pass through the sampling step.</p>
+      </div>
+      <div class="col-card" style="background:#e8f5e9;border:1.5px solid #2e7d32">
+        <h4>✅ Reparameterised — backprop flows</h4>
+        <p><b>ε ~ N(0, I)</b> — sample noise separately</p>
+        <p><b>z = μ + σ · ε</b></p>
+        <p>Now z is a <em>deterministic function</em> of μ and σ. Gradients flow freely!</p>
+      </div>
+    </div>
+    <div class="box b-blue">
+      <div class="box-title">🧠 Analogy</div>
+      <p>Instead of "generate a random number from N(μ, σ²)" — which bakes the randomness into the parameters — we say "generate random noise ε from N(0,1), then shift and scale it: z = μ + σ·ε". The shift and scale operation <em>is differentiable</em>. The noise ε has no parameters, so we don't need gradients for it.</p>
+    </div>
+    <div class="flow" style="margin-top:14px">
+      <div class="flow-box" style="background:#fce4ec">Loss</div>
+      <div class="arrow">←</div>
+      <div class="flow-box" style="background:#eef1ff">x̂</div>
+      <div class="arrow">←</div>
+      <div class="flow-box orange">Decoder</div>
+      <div class="arrow">←</div>
+      <div class="flow-box red">z = μ + σ·ε<span class="sub">differentiable ✅</span></div>
+      <div class="arrow">←</div>
+      <div class="flow-box purple">μ, σ<span class="sub">← gradients reach here</span></div>
+    </div>
+    <div class="box b-green" style="margin-top:14px">
+      <div class="box-title">✅ Result</div>
+      <p>Gradients can now flow all the way back to the encoder's μ and σ — through z = μ + σ·ε — and update them correctly. ε is just an external noise sample with no parameters to update.</p>
+    </div>
+  `; }
+},
+
+/* ── 14  QUIZ 3 ──────────────────────────────────── */
+{
+  label: 'Quiz 3', pill: 'quiz',
+  quiz: {
+    q: 'In the Reparameterisation Trick, we write z = μ + σ·ε where ε ~ N(0,I). Why does this allow backpropagation?',
+    opts: [
+      'It removes the need for a KL divergence term in the loss',
+      'The randomness moves to ε (which has no learned parameters), so gradients can flow back to μ and σ through the deterministic formula z = μ + σ·ε',
+      'It makes the model deterministic, which is simpler to train',
+      'It shrinks the size of the latent space to make training faster'
+    ],
+    correct: 1,
+    fb: '✅ Perfect! ε is just noise from a fixed distribution — no parameters. The encoder\'s actual learned parameters μ and σ are connected to z via a simple differentiable formula, so gradients flow through it perfectly.'
+  }
+},
+
+/* ── 15  LOSS FUNCTION ───────────────────────────── */
+{
+  label: 'Loss Function', pill: 'math',
+  html() { return `
+    <div class="pill pill-math">📉 Loss Function</div>
+    <h2>📉 The Full VAE Loss</h2>
+    <p>Putting everything together. The VAE loss has two terms:</p>
+    <div class="code">Loss = <span class="c-green">Reconstruction Loss</span>  +  <span class="c-red">KL Divergence</span>
+
+<span class="c-green">Reconstruction Loss:</span>  |x − x̂|²   (mean squared error)
+<span class="c-grey">  or binary cross-entropy for 0/1 pixel values</span>
+
+<span class="c-red">KL Divergence</span> (closed form for Gaussian):
+  −0.5 × Σ(1 + log σ² − σ² − μ²)
+
+<span class="c-grey">// Combined:</span>
+Loss = |x − x̂|²  −  0.5 × (1 + log σ² − σ² − μ²)</div>
+    <div class="box b-blue">
+      <div class="box-title">💡 Why does KL have a closed form?</div>
+      <p>Because both distributions are Gaussian: q(z|x) = N(μ, σ²) and p(z) = N(0,1). The KL divergence between two Gaussians has an exact formula — no approximation needed!</p>
+    </div>
+    <div class="cols2">
+      <div class="col-card" style="border-top:3px solid #4f6ef7;background:#f8f8fc">
+        <h4>Reconstruction pushes:</h4>
+        <p>Make q(z|x) very specific to each image — spread out μ values so each x maps to a different region of latent space.</p>
+      </div>
+      <div class="col-card" style="border-top:3px solid #e67e22;background:#fff8f0">
+        <h4>KL term pushes back:</h4>
+        <p>Keep q(z|x) close to N(0,1) — don't let distributions collapse to tiny points or spread out too far.</p>
+      </div>
+    </div>
+    <div class="box b-green">
+      <div class="box-title">🎯 Why this tension is good</div>
+      <p>The two opposing forces create a <b>smooth, organised latent space</b>. Similar images end up near each other. Different images are separated. And the whole space is continuously filled — no dead zones.</p>
+    </div>
+  `; }
+},
+
+/* ── 16  VARIANTS ────────────────────────────────── */
+{
+  label: 'Variants', pill: 'insight',
+  html() { return `
+    <div class="pill pill-insight">🔬 Extensions</div>
+    <h2>🔬 VAE Variants</h2>
+    <h3>β-VAE: Disentangled Representations</h3>
+    <div class="code">L = <span class="c-green">E[log p(x|z)]</span>  −  <span class="c-purple">β</span> · <span class="c-red">KL(q(z|x) ‖ p(z))</span></div>
+    <p>Adding a hyperparameter <b>β</b> scales the KL term. When β > 1, it forces the model to compress information into <b>fewer, more independent latent dimensions</b>.</p>
+    <div class="box b-green">
+      <div class="box-title">🧩 What "disentangled" means</div>
+      <p>A β-VAE trained on faces learns that <em>one</em> latent dimension controls head rotation, <em>another</em> controls lighting, <em>another</em> controls hair colour — each independently. Moving one dimension changes only that one feature.</p>
+    </div>
+    <p>Trade-off: higher β = more disentangled but <b>blurrier</b> reconstructions (KL penalty is so strong, reconstruction suffers).</p>
+
+    <h3 style="margin-top:18px">Conditional VAE (CVAE)</h3>
+    <p>Feed a label <b>y</b> (e.g., "this is a 7") into both encoder and decoder. Now you can generate data conditioned on y — ask it to generate specifically a "7" or a "cat" on demand.</p>
+    <div class="code">encoder: q(z | x, <span class="c-purple">y</span>)     decoder: p(x | z, <span class="c-purple">y</span>)</div>
+
+    <h3 style="margin-top:18px">Discrete VAE</h3>
+    <p>Uses discrete (categorical) latent variables instead of continuous Gaussian ones. Used in DALL-E 1. Requires special techniques like Gumbel-Softmax for differentiable sampling.</p>
+  `; }
+},
+
+/* ── 17  LIMITATIONS ─────────────────────────────── */
+{
+  label: 'Limitations', pill: 'insight',
+  html() { return `
+    <div class="pill pill-insight">⚠️ Limitations</div>
+    <h2>⚠️ VAE Limitations & Challenges</h2>
+    <div class="cols2">
+      <div class="col-card" style="border-left:3px solid #e53935;background:#fff8f8">
+        <h4>🌫️ Blurry outputs</h4>
+        <p>VAEs average over the latent distribution, causing soft reconstructions. This is why GANs and Diffusion Models were developed — they produce sharper images.</p>
+      </div>
+      <div class="col-card" style="border-left:3px solid #e53935;background:#fff8f8">
+        <h4>💥 Posterior collapse</h4>
+        <p>The decoder can learn to ignore z entirely, relying on the prior alone. The latent variable becomes useless — poor representations.</p>
+      </div>
+      <div class="col-card" style="border-left:3px solid #f57c00;background:#fffaf5">
+        <h4>🎛️ Hyperparameter sensitivity</h4>
+        <p>The KL weight needs careful tuning. Too high → blurry. Too low → latent space not organised. Finding balance is tricky.</p>
+      </div>
+      <div class="col-card" style="border-left:3px solid #f57c00;background:#fffaf5">
+        <h4>📐 Gaussian assumption</h4>
+        <p>Assuming z follows a Gaussian may not capture complex multimodal data distributions perfectly.</p>
+      </div>
+      <div class="col-card" style="border-left:3px solid #8e24aa;background:#fdf6ff">
+        <h4>💻 Computational cost</h4>
+        <p>Training VAEs on large datasets or with complex architectures is computationally expensive.</p>
+      </div>
+      <div class="col-card" style="border-left:3px solid #8e24aa;background:#fdf6ff">
+        <h4>🎯 Disentanglement</h4>
+        <p>Achieving truly independent latent dimensions is hard, especially in high-dimensional spaces.</p>
+      </div>
+    </div>
+    <div class="box b-blue" style="margin-top:6px">
+      <div class="box-title">🔗 Connection to what came next</div>
+      <p>The blurriness of VAEs directly motivated <b>GANs</b> (adversarial sharpness) and eventually <b>Diffusion Models</b> (state-of-the-art today). VAEs are the conceptual foundation of all modern generative AI.</p>
+    </div>
+  `; }
+},
+
+/* ── 18  QUIZ 4 ──────────────────────────────────── */
+{
+  label: 'Quiz 4', pill: 'quiz',
+  quiz: {
+    q: 'In a β-VAE, you set β = 10 (much larger than 1). What is the main effect?',
+    opts: [
+      'The model trains 10× faster because the loss is smaller',
+      'The latent dimensions become more disentangled — each captures one independent feature — but reconstruction quality gets worse',
+      'The model generates sharper, more detailed images',
+      'The encoder output becomes deterministic, like a regular autoencoder'
+    ],
+    correct: 1,
+    fb: '✅ Right! A larger β puts heavier pressure on the KL term, forcing the model to encode information into fewer, more independent latent dimensions. This creates disentangled representations at the cost of reconstruction sharpness.'
+  }
+},
+
+/* ── 19  SUMMARY ─────────────────────────────────── */
+{
+  label: 'Summary', pill: 'summary',
+  html() { return `
+    <div class="pill pill-summary">✅ Summary</div>
+    <h2>🎉 You now understand Variational Autoencoders</h2>
+    <p>Here is the complete story, in order:</p>
+    <ul class="checklist">
+      <li><b>p(x)</b> = probability of an image. We want to maximise it for real data, but can't compute it directly (intractable integral).</li>
+      <li><b>p(z)</b> = prior over latent codes. We <em>choose</em> N(0,1) — simple and easy to sample from.</li>
+      <li><b>Regular AEs</b> map inputs to fixed latent points — great for compression, useless for generation (dead zones).</li>
+      <li><b>VAEs</b> map inputs to distributions q(z|x) = N(μ,σ²). The whole latent space becomes smooth and sampleable.</li>
+      <li>Computing p(x) requires summing over all z — intractable. We introduce <b>q(z|x)</b> to only focus on relevant z values.</li>
+      <li><b>E[log p(x|z)]</b> = average (over sampled z) of how well the decoder reconstructs x. The reconstruction term.</li>
+      <li><b>KL(q(z|x) ‖ p(z))</b> = how different is the encoder's distribution from N(0,1)? The regularisation term. Always ≥ 0.</li>
+      <li>Since log p(x) = KL + ELBO, and KL ≥ 0, the <b>ELBO is a lower bound</b>. Maximising ELBO → maximising log p(x).</li>
+      <li>The <b>Reparameterisation Trick</b> (z = μ + σ·ε, ε~N(0,I)) lets gradients flow through the sampling step.</li>
+      <li>Loss = reconstruction error + KL penalty. The tension between them creates a smooth, organised latent space.</li>
+      <li><b>β-VAE</b>: scale the KL term by β > 1 for disentangled representations (at the cost of sharpness).</li>
+      <li>VAEs produce <b>blurry images</b> — this limitation inspired GANs and Diffusion Models.</li>
+    </ul>
+    <div class="box b-blue" style="margin-top:16px">
+      <div class="box-title">🔗 What comes next in the course</div>
+      <p>The blurriness of VAEs is exactly why researchers invented <b>GANs</b> (Day 5) — which use adversarial training for sharp, photorealistic images — and later <b>Diffusion Models</b>, which power Stable Diffusion, DALL-E, and Midjourney today.</p>
+    </div>
+  `; }
+}
+
+];
+
+/* ═══════════════════════════════════════════════════
+   QUIZ RENDERER
+═══════════════════════════════════════════════════ */
+sections.forEach((s, i) => {
+  s._idx = i;
+  if (s.quiz) {
+    s.html = function() {
+      return `
+        <div class="pill pill-quiz">❓ Quick Check</div>
+        <h2>Quiz — check your understanding</h2>
+        <div class="quiz-q">${s.quiz.q}</div>
+        <div class="quiz-opts" id="qopts-${i}">
+          ${s.quiz.opts.map((o,j)=>`<button class="quiz-opt" data-j="${j}" onclick="answer(${i},${j})">${o}</button>`).join('')}
+        </div>
+        <div class="quiz-fb" id="qfb-${i}"></div>`;
+    };
+  }
+});
+
+/* ═══════════════════════════════════════════════════
+   INTERACTIVE HELPERS
+═══════════════════════════════════════════════════ */
+
+/* ── p(z) canvas ───────────────────────────────── */
+function buildZVec() {
+  const el = document.getElementById('zvec');
+  if (!el) return;
+  const vals = [0.8,-0.3,1.2,-1.5,0.1,2.0,-0.7,0.4,-1.1,0.9,-0.2,1.6,-0.5,1.3,-0.8];
+  el.innerHTML = vals.map(v => {
+    const h = v >= 0 ? 210 : 0;
+    const a = 0.4 + Math.abs(v)*0.25;
+    return `<div class="z-cell" style="background:hsla(${h},65%,45%,${a})">${v.toFixed(1)}</div>`;
+  }).join('');
+}
+
+function drawPZ() {
+  const c = document.getElementById('pzCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#fff9f3'; ctx.fillRect(0,0,W,H);
+  const xMin=-4,xMax=4;
+  const tx=x=>(x-xMin)/(xMax-xMin)*W;
+  const ty=y=>H-8-y*(H-16)/0.42;
+  const g=x=>Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(245,124,0,.25)');
+  grad.addColorStop(1,'rgba(245,124,0,.03)');
+  ctx.beginPath();
+  ctx.moveTo(tx(xMin),H);
+  for(let x=xMin;x<=xMax;x+=0.04)ctx.lineTo(tx(x),ty(g(x)));
+  ctx.lineTo(tx(xMax),H);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();
+  for(let x=xMin;x<=xMax;x+=0.04)ctx.lineTo(tx(x),ty(g(x)));
+  ctx.strokeStyle='#f57c00';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.strokeStyle='#eee';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,H-8);ctx.lineTo(W,H-8);ctx.stroke();
+  ctx.fillStyle='#aaa';ctx.font='11px sans-serif';ctx.textAlign='center';
+  [-3,-2,-1,0,1,2,3].forEach(v=>ctx.fillText(v,tx(v),H-1));
+}
+
+/* ── Z-ball grid ────────────────────────────────── */
+function initZGrid() {
+  zPicked = [];
+  const el = document.getElementById('zGrid');
+  if (!el) return;
+  el.innerHTML = Array.from({length:32},(_,i)=>{
+    const hue=(i*11)%360;
+    return `<div class="z-ball dim" id="zb${i}" style="background:hsl(${hue},55%,48%)" onclick="toggleZ(${i})">${i}</div>`;
+  }).join('') + `<div style="width:100%;margin-top:8px;font-size:12px;color:#888" id="znote">👆 Click z values to check them — the integral checks ALL of them (and infinitely more)</div>`;
+}
+function toggleZ(i) {
+  const b=document.getElementById('zb'+i);
+  const idx=zPicked.indexOf(i);
+  if(idx>=0){zPicked.splice(idx,1);b.classList.add('dim');}
+  else{zPicked.push(i);b.classList.remove('dim');}
+  const note=document.getElementById('znote');
+  if(!note)return;
+  const n=zPicked.length;
+  if(n===0) note.textContent='👆 Click z values to check them — the integral checks ALL of them (and infinitely more)';
+  else if(n<6)  note.textContent=`You checked ${n} value${n>1?'s':''}. The integral checks infinitely many. Exhausting! 😩`;
+  else if(n<16) note.textContent=`${n}/32 checked... imagine doing this for every training image, infinitely many z values. That's why it's intractable! 😤`;
+  else note.textContent=`${n}/32 — you can feel how expensive this is. q(z|x) fixes this by only checking z values that actually matter for x. ✅`;
+}
+
+/* ── Dice ───────────────────────────────────────── */
+function initDice() {
+  dicePicked = [];
+  const el = document.getElementById('diceRow');
+  if (!el) return;
+  const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+  const vals   = [1,2,3,4,5,6];
+  el.innerHTML = vals.map((v,i)=>`<div class="die" id="die${i}" onclick="pickDie(${i},${v})">${faces[i]}</div>`).join('');
+  updateAvg();
+}
+function pickDie(i,v) {
+  const el=document.getElementById('die'+i);
+  const idx=dicePicked.indexOf(i);
+  if(idx>=0){dicePicked.splice(idx,1);el.classList.remove('picked');}
+  else{dicePicked.push(i);el.classList.add('picked');}
+  updateAvg();
+}
+function updateAvg() {
+  const ab=document.getElementById('avgBox');
+  if(!ab)return;
+  const faceVals=[1,2,3,4,5,6];
+  if(dicePicked.length===0){ab.innerHTML='— <span class="avg-sub">pick some dice to average</span>';return;}
+  const sum=dicePicked.reduce((a,i)=>a+faceVals[i],0);
+  const avg=(sum/dicePicked.length).toFixed(1);
+  ab.innerHTML=`<b>${avg}</b> <span class="avg-sub">= (${dicePicked.map(i=>faceVals[i]).join(' + ')}) ÷ ${dicePicked.length}</span>`;
+}
+
+/* ── Salary slider ──────────────────────────────── */
+function updateSalary() {
+  const sl=document.getElementById('klSlider');
+  if(!sl)return;
+  const kl=parseInt(sl.value);
+  const elbo=100-kl;
+  document.getElementById('salKL').style.width=kl+'%';
+  document.getElementById('salELBO').style.width=elbo+'%';
+  document.getElementById('klVal').textContent=kl;
+  document.getElementById('salTotal').textContent=`log p(x) = KL + ELBO = ${kl} + ${elbo} = 100 (constant for fixed x)`;
+  const msg=document.getElementById('salMsg');
+  if(!msg)return;
+  if(kl===0){
+    msg.className='box b-green';
+    msg.innerHTML='<div class="box-title">🎯 Perfect!</div><p>KL = 0 → encoder perfectly matches N(0,1). ELBO = log p(x). This is the ideal — the ELBO equals the true log-likelihood. In practice we get very close but rarely exactly zero.</p>';
+  } else if(kl<30){
+    msg.className='box b-blue';
+    msg.innerHTML=`<div class="box-title">✅ Good training</div><p>KL = ${kl} is small — the encoder is close to N(0,1). ELBO = ${elbo} is close to log p(x). The model has learned well.</p>`;
+  } else {
+    msg.className='box b-orange';
+    msg.innerHTML=`<div class="box-title">⚠️ Early training / poor model</div><p>KL = ${kl} is large — the encoder has drifted from N(0,1). ELBO = ${elbo} is much lower than log p(x) = 100. Training will push KL down and ELBO up.</p>`;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   QUIZ LOGIC
+═══════════════════════════════════════════════════ */
+function answer(secIdx, optIdx) {
+  if (answered[secIdx] !== undefined) return;
+  answered[secIdx] = optIdx;
+  const s = sections[secIdx];
+  const opts = document.querySelectorAll(`#qopts-${secIdx} .quiz-opt`);
+  opts.forEach(o => { o.onclick=null; o.classList.add('done'); });
+  opts[optIdx].classList.add(optIdx === s.quiz.correct ? 'correct' : 'wrong');
+  if (optIdx !== s.quiz.correct) opts[s.quiz.correct].classList.add('correct');
+  const fb = document.getElementById(`qfb-${secIdx}`);
+  fb.style.display = 'block';
+  fb.className = `quiz-fb ${optIdx === s.quiz.correct ? 'fb-ok' : 'fb-bad'}`;
+  fb.textContent = optIdx === s.quiz.correct ? s.quiz.fb : '🤔 Not quite — ' + s.quiz.fb;
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER ENGINE
+═══════════════════════════════════════════════════ */
+function buildDots() {
+  const el = document.getElementById('dots');
+  el.innerHTML = sections.map((s,i)=>`<div class="chapter-dot ${i===cur?'current':i<cur?'done':''}" onclick="jumpTo(${i})" title="${s.label}"></div>`).join('');
+}
+
+function render() {
+  const s = sections[cur];
+  const pct = Math.round(cur / (sections.length-1) * 100);
+
+  document.getElementById('pbar').style.width = pct+'%';
+  document.getElementById('sec-label').textContent = `${s.label}  —  Section ${cur+1} of ${sections.length}`;
+  document.getElementById('sec-count').textContent = pct+'% complete';
+  buildDots();
+
+  document.getElementById('content').innerHTML =
+    s.html() +
+    `<div class="nav-row">
+       <button class="btn btn-secondary" onclick="go(-1)" ${cur===0?'disabled':''}>← Back</button>
+       <div class="nav-spacer"></div>
+       <button class="btn btn-primary" onclick="go(1)" ${cur===sections.length-1?'disabled':''}>
+         ${cur===sections.length-1 ? '🎉 Done!' : 'Next →'}
+       </button>
+     </div>`;
+
+  // restore answered quiz
+  if (s.quiz && answered[cur] !== undefined) {
+    const opts = document.querySelectorAll(`#qopts-${cur} .quiz-opt`);
+    opts.forEach(o=>{o.onclick=null;o.classList.add('done');});
+    opts[answered[cur]].classList.add(answered[cur]===s.quiz.correct?'correct':'wrong');
+    if(answered[cur]!==s.quiz.correct) opts[s.quiz.correct].classList.add('correct');
+    const fb=document.getElementById(`qfb-${cur}`);
+    fb.style.display='block';
+    fb.className=`quiz-fb ${answered[cur]===s.quiz.correct?'fb-ok':'fb-bad'}`;
+    fb.textContent=answered[cur]===s.quiz.correct?s.quiz.fb:'🤔 Not quite — '+s.quiz.fb;
+  }
+
+  // run onEnter hook
+  if (s.onEnter) s.onEnter();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function go(d) {
+  cur = Math.max(0, Math.min(sections.length-1, cur+d));
+  render();
+}
+
+function jumpTo(i) {
+  cur = i;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

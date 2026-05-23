@@ -1,0 +1,229 @@
+
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg-1,#f4f4f8); color:#1a1a1a; }
+#app { max-width:720px; margin:0 auto; padding:16px; display:flex; flex-direction:column; gap:16px; }
+
+.card { background:#fff; border-radius:16px; padding:22px; border:2px solid #e8e8e8; }
+.card.blue  { border-color:#4f6ef7; }
+.card.orange{ border-color:#f57c00; }
+
+.card-header { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.card-icon { font-size:36px; }
+.card-title { font-size:19px; font-weight:800; }
+.card-sub   { font-size:13px; color:#888; margin-top:2px; }
+
+.tag { display:inline-block; font-family:monospace; font-size:16px; font-weight:700; padding:6px 14px; border-radius:8px; }
+.tag-blue   { background:#1e1e2e; color:#89b4fa; }
+.tag-orange { background:#2e1a00; color:#ffa94d; }
+
+p { font-size:14px; line-height:1.8; color:#333; margin-bottom:10px; }
+p:last-child { margin-bottom:0; }
+
+.box { border-radius:10px; padding:13px 16px; margin:10px 0; }
+.box-blue   { background:#eef1ff; border-left:4px solid #4f6ef7; }
+.box-orange { background:#fff3e0; border-left:4px solid #f57c00; }
+.box-green  { background:#e8f5e9; border-left:4px solid #2e7d32; }
+.box-pink   { background:#fce4ec; border-left:4px solid #e91e63; }
+.bx-t { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; opacity:.6; margin-bottom:5px; }
+.box p { margin:0; }
+
+/* pixel grid */
+.pixel-grid { display:grid; grid-template-columns:repeat(10,1fr); gap:2px; width:180px; margin:0 auto; }
+.pixel { width:100%; aspect-ratio:1; border-radius:2px; cursor:pointer; transition:background .15s; }
+
+.sample-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:10px 0; }
+.img-box { width:60px; height:60px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:28px; border:2px solid; flex-shrink:0; }
+
+/* z vector */
+.z-vector { display:flex; gap:4px; flex-wrap:wrap; margin:10px 0; }
+.z-cell { width:38px; height:38px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+
+/* gaussian curve via canvas */
+canvas { display:block; border-radius:8px; width:100%; }
+
+/* compare table */
+.compare { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px; }
+.compare th { background:#f0f0f0; padding:8px 12px; text-align:left; font-weight:700; border-radius:6px; }
+.compare td { padding:8px 12px; border-bottom:1px solid #f0f0f0; vertical-align:top; line-height:1.6; }
+.compare tr:last-child td { border-bottom:none; }
+</style>
+
+<div id="app">
+
+  <!-- p(x) card -->
+  <div class="card blue">
+    <div class="card-header">
+      <div class="card-icon">🖼️</div>
+      <div>
+        <div class="card-title"><span class="tag tag-blue">p(x)</span> — Probability of an image</div>
+        <div class="card-sub">"How likely is this image to naturally exist?"</div>
+      </div>
+    </div>
+
+    <p><b>x is an image</b> — say a 28×28 grid of pixels (like MNIST digits). p(x) asks: among all the <em>billions of possible pixel combinations</em>, how likely is this particular one to be a real, meaningful image?</p>
+
+    <div class="box box-orange">
+      <div class="bx-t">🎲 Think of it this way</div>
+      <p>If you randomly set every pixel to a random color, you'd almost certainly get noise — not a real digit. The space of <em>all possible images</em> is huge. Real, meaningful images occupy a tiny slice of it. <b>p(x) is high for images that look like real data, and near-zero for random noise.</b></p>
+    </div>
+
+    <div class="sample-row">
+      <div style="text-align:center">
+        <div class="img-box" style="border-color:#2e7d32;background:#e8f5e9">🐱</div>
+        <div style="font-size:11px;color:#2e7d32;margin-top:4px;font-weight:700">p(x) = high<br>real cat image</div>
+      </div>
+      <div style="text-align:center">
+        <div class="img-box" style="border-color:#2e7d32;background:#e8f5e9">7️⃣</div>
+        <div style="font-size:11px;color:#2e7d32;margin-top:4px;font-weight:700">p(x) = high<br>real digit</div>
+      </div>
+      <div style="text-align:center">
+        <div class="img-box" style="border-color:#e53935;background:#ffebee;font-size:13px;color:#999">▓▒░▓░<br>░▓▒▓▒<br>▒░▓░▓</div>
+        <div style="font-size:11px;color:#e53935;margin-top:4px;font-weight:700">p(x) ≈ 0<br>random noise</div>
+      </div>
+      <div style="text-align:center">
+        <div class="img-box" style="border-color:#e53935;background:#ffebee;font-size:22px">🌀</div>
+        <div style="font-size:11px;color:#e53935;margin-top:4px;font-weight:700">p(x) ≈ 0<br>meaningless</div>
+      </div>
+    </div>
+
+    <div class="box box-blue">
+      <div class="bx-t">🎯 Why we care</div>
+      <p>Training a VAE = maximizing p(x) for all images in our dataset. We want the model to say "yes, these images make perfect sense!" But computing p(x) requires that impossible integral — so we use the ELBO instead.</p>
+    </div>
+  </div>
+
+  <!-- p(z) card -->
+  <div class="card orange">
+    <div class="card-header">
+      <div class="card-icon">🎛️</div>
+      <div>
+        <div class="card-title"><span class="tag tag-orange">p(z)</span> — Probability of a latent code</div>
+        <div class="card-sub">"What should z look like before we see any image?"</div>
+      </div>
+    </div>
+
+    <p><b>z is the hidden description</b> — a short list of numbers that summarizes an image. p(z) is our <b>assumption</b> about what z should look like in general, before looking at any specific image.</p>
+
+    <div class="box box-pink">
+      <div class="bx-t">🧠 We CHOOSE p(z) — it's a design decision</div>
+      <p>In a VAE, we <b>decide</b> that p(z) = N(0, 1) — a standard normal distribution. This means we expect z values to be numbers roughly between -3 and 3, centered at zero. <b>We pick this because it's simple and easy to sample from.</b></p>
+    </div>
+
+    <p>Here's what z might look like for a cat image — a vector of numbers:</p>
+    <div class="z-vector" id="zvec"></div>
+    <p style="font-size:12px;color:#888;margin-top:4px">These numbers are all roughly between -2 and 2 — that's what p(z) = N(0,1) means.</p>
+
+    <canvas id="pzCanvas" height="90"></canvas>
+    <p style="font-size:12px;color:#888;text-align:center;margin-top:4px">p(z) = standard normal bell curve. Values near 0 are common, extremes are rare.</p>
+
+    <div class="box box-green" style="margin-top:10px">
+      <div class="bx-t">💡 Why standard normal specifically?</div>
+      <p>Because at <b>generation time</b> we want to just sample a random z and decode it into a new image. If the latent space follows N(0,1), we can do exactly that — just pick random numbers from a standard normal and feed them to the decoder!</p>
+    </div>
+  </div>
+
+  <!-- comparison card -->
+  <div class="card" style="border-color:#8e24aa">
+    <div class="card-header">
+      <div class="card-icon">⚖️</div>
+      <div>
+        <div class="card-title">p(x) vs p(z) — side by side</div>
+        <div class="card-sub">The key differences</div>
+      </div>
+    </div>
+    <table class="compare">
+      <tr>
+        <th></th>
+        <th style="color:#4f6ef7">p(x)</th>
+        <th style="color:#f57c00">p(z)</th>
+      </tr>
+      <tr>
+        <td><b>What is it?</b></td>
+        <td>Probability of an image</td>
+        <td>Probability of a latent code</td>
+      </tr>
+      <tr>
+        <td><b>What is x/z?</b></td>
+        <td>Raw pixels — e.g. 784 numbers (28×28)</td>
+        <td>Hidden description — e.g. 20 numbers</td>
+      </tr>
+      <tr>
+        <td><b>Do we choose it?</b></td>
+        <td>❌ No — it's determined by the real data</td>
+        <td>✅ Yes — we choose N(0,1) by design</td>
+      </tr>
+      <tr>
+        <td><b>Can we compute it?</b></td>
+        <td>❌ Not directly — requires intractable integral</td>
+        <td>✅ Yes — it's just a Gaussian formula</td>
+      </tr>
+      <tr>
+        <td><b>Goal during training</b></td>
+        <td>Maximize it (make real images more likely)</td>
+        <td>Keep encoder's q(z|x) close to it (regularization)</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+<script>
+/* z vector */
+function buildZVec() {
+  const vec = document.getElementById('zvec');
+  if (!vec) return;
+  const vals = [0.8,-0.3,1.2,-1.5,0.1,2.0,-0.7,0.4,-1.1,0.9,-0.2,1.6];
+  vec.innerHTML = vals.map(v => {
+    const abs = Math.abs(v);
+    const hue = v>=0 ? 210 : 0;
+    const alpha = 0.4 + abs*0.3;
+    const bg = `hsla(${hue},70%,45%,${alpha})`;
+    return `<div class="z-cell" style="background:${bg}">${v.toFixed(1)}</div>`;
+  }).join('');
+}
+
+/* p(z) gaussian curve */
+function drawPZ() {
+  const canvas = document.getElementById('pzCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#fff9f3'; ctx.fillRect(0,0,W,H);
+
+  const xMin=-4, xMax=4;
+  function tx(x){ return (x-xMin)/(xMax-xMin)*W; }
+  function ty(y){ return H-8-y*(H-16)/0.42; }
+  function g(x){ return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI); }
+
+  /* fill */
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(245,124,0,0.25)');
+  grad.addColorStop(1,'rgba(245,124,0,0.03)');
+  ctx.beginPath();
+  ctx.moveTo(tx(xMin),H);
+  for(let x=xMin;x<=xMax;x+=0.05) ctx.lineTo(tx(x),ty(g(x)));
+  ctx.lineTo(tx(xMax),H);
+  ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
+
+  /* curve */
+  ctx.beginPath();
+  for(let x=xMin;x<=xMax;x+=0.05) ctx.lineTo(tx(x),ty(g(x)));
+  ctx.strokeStyle='#f57c00'; ctx.lineWidth=2.5; ctx.stroke();
+
+  /* axis */
+  ctx.strokeStyle='#ddd'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,H-8); ctx.lineTo(W,H-8); ctx.stroke();
+
+  /* labels */
+  ctx.fillStyle='#aaa'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+  [-3,-2,-1,0,1,2,3].forEach(v=>{ ctx.fillText(v,tx(v),H-1); });
+  ctx.fillStyle='#f57c00'; ctx.font='bold 12px sans-serif';
+  ctx.fillText('Most z values land near 0  →  p(z) is highest here',tx(0),ty(0.41)-6);
+}
+
+buildZVec();
+drawPZ();
+</script>
