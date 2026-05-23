@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+<h2 class="sr-only">Interactive Variational Autoencoders lesson with sections, quizzes, and visualizations</h2>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-1,#f5f5f5); color: var(--text-1,#1a1a1a); min-height: 100vh; }
+  
+  #app { max-width: 780px; margin: 0 auto; padding: 16px; }
+
+  /* Progress bar */
+  .progress-bar-wrap { background: var(--bg-2,#e8e8e8); border-radius: 8px; height: 6px; margin-bottom: 8px; }
+  .progress-bar-fill { background: #4f6ef7; height: 6px; border-radius: 8px; transition: width 0.4s; }
+  .progress-label { font-size: 12px; color: var(--text-2,#666); margin-bottom: 16px; text-align: right; }
+
+  /* Section card */
+  .section-card { background: var(--bg-0,#fff); border-radius: 14px; padding: 24px; margin-bottom: 20px; border: 1.5px solid var(--border,#e0e0e0); }
+  .section-tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 3px 10px; border-radius: 20px; margin-bottom: 10px; }
+  .tag-concept { background: #eef1ff; color: #4f6ef7; }
+  .tag-visual { background: #fff3e0; color: #e67e22; }
+  .tag-quiz { background: #e8f5e9; color: #2e7d32; }
+  .tag-math { background: #fce4ec; color: #c2185b; }
+  .tag-insight { background: #f3e5f5; color: #7b1fa2; }
+
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  h2 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  p { font-size: 14px; line-height: 1.7; color: var(--text-1,#333); margin-bottom: 8px; }
+  .note { font-size: 13px; color: var(--text-2,#555); font-style: italic; }
+
+  /* Nav buttons */
+  .nav { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity 0.2s; }
+  .btn-primary { background: #4f6ef7; color: #fff; }
+  .btn-secondary { background: var(--bg-2,#e8e8e8); color: var(--text-1,#333); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:hover:not(:disabled) { opacity: 0.85; }
+  .spacer { flex: 1; }
+
+  /* Quiz */
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .quiz-opt { padding: 10px 14px; border-radius: 8px; border: 2px solid var(--border,#e0e0e0); cursor: pointer; font-size: 14px; background: var(--bg-0,#fff); text-align: left; transition: all 0.15s; }
+  .quiz-opt:hover:not(.answered) { border-color: #4f6ef7; background: #f0f2ff; }
+  .quiz-opt.correct { border-color: #2e7d32; background: #e8f5e9; color: #1b5e20; font-weight: 600; }
+  .quiz-opt.wrong { border-color: #c62828; background: #ffebee; color: #b71c1c; }
+  .quiz-feedback { margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+  .feedback-ok { background: #e8f5e9; color: #1b5e20; }
+  .feedback-bad { background: #fff3e0; color: #e65100; }
+
+  /* Diagrams */
+  .diagram { background: var(--bg-1,#f8f8f8); border-radius: 10px; padding: 16px; margin: 14px 0; }
+  .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; }
+  .flow-box { background: var(--bg-0,#fff); border: 2px solid #4f6ef7; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; text-align: center; min-width: 80px; }
+  .flow-box.orange { border-color: #e67e22; }
+  .flow-box.green { border-color: #2e7d32; }
+  .flow-box.red { border-color: #c2185b; background: #fce4ec; }
+  .arrow { font-size: 20px; color: #aaa; padding: 0 6px; }
+  .sub { font-size: 11px; color: #888; font-weight: 400; display: block; }
+
+  /* Math block */
+  .math-block { background: #1e1e2e; color: #cdd6f4; border-radius: 10px; padding: 14px 18px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.8; margin: 12px 0; overflow-x: auto; }
+  .math-comment { color: #6c7086; }
+  .math-key { color: #89b4fa; font-weight: bold; }
+  .math-val { color: #a6e3a1; }
+
+  /* Interactive latent space */
+  canvas { border-radius: 10px; display: block; }
+  .canvas-wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; margin: 14px 0; }
+  .canvas-label { font-size: 12px; color: var(--text-2,#666); text-align: center; margin-top: 4px; }
+  label { font-size: 13px; font-weight: 500; }
+  input[type=range] { width: 100%; margin: 4px 0 10px; }
+
+  /* Insight boxes */
+  .insight { border-left: 4px solid #4f6ef7; background: #f0f2ff; padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 13px; }
+  .insight.orange { border-color: #e67e22; background: #fff8f0; }
+  .insight.green { border-color: #2e7d32; background: #f1f8f1; }
+  .insight.pink { border-color: #c2185b; background: #fdf2f6; }
+
+  /* Emoji header */
+  .emoji-header { font-size: 32px; margin-bottom: 8px; }
+
+  /* Checklist for summary */
+  .check-list { list-style: none; padding: 0; }
+  .check-list li { padding: 6px 0; font-size: 14px; display: flex; gap: 10px; align-items: flex-start; }
+  .check-list li::before { content: "✅"; flex-shrink: 0; }
+
+  /* Score */
+  .score-circle { width: 80px; height: 80px; border-radius: 50%; background: #4f6ef7; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; margin: 0 auto 16px; }
+  .score-label { font-size: 11px; font-weight: 400; }
+
+  /* Columns */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col-card { background: var(--bg-1,#f8f8f8); border-radius: 8px; padding: 12px; font-size: 13px; }
+  .col-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+
+  /* Hidden */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="pb" style="width:0%"></div></div>
+  <div class="progress-label" id="prog-label">Section 1 of 9</div>
+  <div id="sections-container"></div>
+</div>
+
+<script>
+const sections = [
+  // ── 0 Welcome ─────────────────────────────────────────────────────────────
+  {
+    tag:'concept', tagLabel:'Welcome',
+    render() {
+      return `
+      <div class="emoji-header">🤖</div>
+      <h1>Variational Autoencoders — Interactive Lecture</h1>
+      <p>Based on the KAUST Academy Day-4 lecture by Naeemullah Khan. We'll go through the material <b>one concept at a time</b>, with quick quizzes to lock in understanding. No boring slides — just you and the ideas.</p>
+      <div class="insight">
+        <b>📋 What you'll understand by the end:</b><br>
+        Why normal autoencoders can't generate new data → what a VAE does differently → the math behind it (ELBO, KL divergence, reparameterization) → how to train one → variants like β-VAE.
+      </div>
+      <p>Ready? Hit <b>Next</b> to start! 🚀</p>`;
+    }
+  },
+
+  // ── 1 AE Recap + Problem ──────────────────────────────────────────────────
+  {
+    tag:'concept', tagLabel:'Problem with AEs',
+    render() {
+      return `
+      <h2>🔁 The Problem with Regular Autoencoders</h2>
+      <p>You already know autoencoders from Day 3. Quick recap:</p>
+      <div class="diagram">
+        <div class="flow">
+          <div class="flow-box" style="background:#eef1ff">Input x<span class="sub">e.g. an image</span></div>
+          <div class="arrow">→</div>
+          <div class="flow-box" style="background:#fff3e0">Encoder<span class="sub">compresses</span></div>
+          <div class="arrow">→</div>
+          <div class="flow-box red">z<span class="sub">fixed point!</span></div>
+          <div class="arrow">→</div>
+          <div class="flow-box" style="background:#fff3e0">Decoder<span class="sub">reconstructs</span></div>
+          <div class="arrow">→</div>
+          <div class="flow-box" style="background:#eef1ff">x̂<span class="sub">reconstruction</span></div>
+        </div>
+      </div>
+      <p>The AE maps each input <b>x</b> to a <b>single fixed point z</b> in the latent space. It minimizes <b>||x − x̂||²</b>.</p>
+      <div class="insight orange">
+        <b>⚠️ The key problem:</b> The latent space is <b>too discrete</b>. Points between known embeddings don't decode into meaningful data — so you can't just sample a random z and expect something sensible.
+      </div>
+      <p>If you try to generate by sampling a random point in latent space, you get garbage. The AE never learned to fill the space <em>continuously</em>.</p>
+      <p><b>VAE's fix:</b> Make the latent space <em>probabilistic</em> — instead of a point, the encoder outputs a <em>distribution</em> over z. Now the space is smooth and you can sample!</p>`;
+    }
+  },
+
+  // ── 2 Quiz 1 ──────────────────────────────────────────────────────────────
+  {
+    tag:'quiz', tagLabel:'Quick Check',
+    quiz: {
+      q: 'Why can\'t a regular autoencoder generate new data by sampling from its latent space?',
+      opts: [
+        'It uses too many parameters and overfits',
+        'The latent space is discrete — random points between known encodings don\'t decode into meaningful data',
+        'The decoder is not powerful enough',
+        'It doesn\'t have a loss function'
+      ],
+      correct: 1,
+      feedback: '✅ Exactly! The latent space has "holes" — it only learned embeddings for training data, not a continuous probability distribution. VAEs fix this by encoding distributions, not points.'
+    },
+    render() { return this._quizHTML(); }
+  },
+
+  // ── 3 VAE Key Idea ────────────────────────────────────────────────────────
+  {
+    tag:'concept', tagLabel:'VAE Key Idea',
+    render() {
+      return `
+      <h2>💡 The VAE Idea: Probabilistic Encoding</h2>
+      <p>The core shift: instead of encoding x → z (a point), the encoder outputs the <b>parameters of a Gaussian distribution</b>:</p>
+      <div class="diagram">
+        <div class="flow" style="gap:8px">
+          <div class="flow-box" style="background:#eef1ff">Input x</div>
+          <div class="arrow">→</div>
+          <div class="flow-box orange">Encoder<span class="sub">neural net</span></div>
+          <div class="arrow">→</div>
+          <div style="text-align:center">
+            <div class="flow-box" style="border-color:#9c27b0;background:#f3e5f5;margin-bottom:6px">μ(x)<span class="sub">mean vector</span></div>
+            <div class="flow-box" style="border-color:#9c27b0;background:#f3e5f5">σ(x)<span class="sub">std dev vector</span></div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-box red">Sample z<span class="sub">~N(μ,σ²)</span></div>
+          <div class="arrow">→</div>
+          <div class="flow-box green">Decoder<span class="sub">reconstructs</span></div>
+          <div class="arrow">→</div>
+          <div class="flow-box" style="background:#eef1ff">x̂</div>
+        </div>
+      </div>
+      <p>The encoder learns <b>q(z|x)</b> — a Gaussian distribution over latent codes given the input. The decoder models <b>p(x|z)</b>.</p>
+      <div class="insight green">
+        <b>🎯 Why does this work?</b> Because we also force the distribution q(z|x) to stay close to a standard normal N(0, I). This fills the latent space continuously. Any z you sample from N(0,I) will decode into something meaningful!
+      </div>
+      <div class="cols">
+        <div class="col-card">
+          <h4>Regular AE latent space</h4>
+          <p>Sparse, isolated clusters. Gaps between points = garbage outputs.</p>
+        </div>
+        <div class="col-card">
+          <h4>VAE latent space</h4>
+          <p>Smooth, continuous. Every point decodes to something sensible. You can interpolate!</p>
+        </div>
+      </div>`;
+    }
+  },
+
+  // ── 4 Variational Inference + ELBO ────────────────────────────────────────
+  {
+    tag:'math', tagLabel:'The Math: ELBO',
+    render() {
+      return `
+      <h2>📐 Why Can't We Just Maximize p(x)?</h2>
+      <p>Training = find model parameters θ that maximize the likelihood of our data. Seems easy?</p>
+      <div class="math-block">p<span class="math-key">θ</span>(x) = ∫ p<span class="math-key">θ</span>(z) · p<span class="math-key">θ</span>(x|z) dz</div>
+      <div class="insight pink">
+        <b>😱 Problem:</b> We'd need to evaluate p(x|z) for <em>every possible z</em> — an integral over a continuous infinite space. That's <b>intractable</b>!<br><br>
+        And because of Bayes' rule, the posterior p(z|x) = p(x|z)·p(z) / p(x) is also intractable (it depends on p(x)).
+      </div>
+      <h3 style="margin-top:14px">🔑 The Solution: Variational Inference</h3>
+      <p>Instead of computing the true (intractable) posterior p(z|x), we <b>approximate it</b> with a tractable distribution <b>q(z)</b> — specifically a Gaussian.</p>
+      <p>We want q(z) ≈ p(z|x), measured by <b>KL divergence</b>. But here's the smart twist:</p>
+      <div class="math-block"><span class="math-comment">// Rearranging the math gives:</span>
+log p(x) = <span class="math-key">KL</span>(q(z) ‖ p(z|x)) + <span class="math-val">L</span>
+
+<span class="math-comment">// Since KL ≥ 0 always:</span>
+log p(x) ≥ <span class="math-val">L</span>   ← <span class="math-key">L is the ELBO!</span>
+</div>
+      <div class="insight">
+        <b>💡 The key insight:</b> Since log p(x) is a constant (for fixed x), <b>minimizing KL</b> is equivalent to <b>maximizing L</b>. And L is something we can actually compute! This is the <b>Evidence Lower Bound (ELBO)</b>.
+      </div>
+      <h3 style="margin-top:14px">The ELBO Unpacked</h3>
+      <div class="math-block"><span class="math-val">L</span> = E<sub>q(z)</sub>[log p(x|z)] - <span class="math-key">KL</span>(q(z|x) ‖ p(z))
+
+    ↑                           ↑
+Reconstruction term      Regularization term
+"how well can we          "how close is q(z|x)
+ reconstruct x?"          to our prior N(0,I)?"</div>`;
+    }
+  },
+
+  // ── 5 Quiz 2 ──────────────────────────────────────────────────────────────
+  {
+    tag:'quiz', tagLabel:'Quick Check',
+    quiz: {
+      q: 'The ELBO has two terms. What does the KL divergence term do during training?',
+      opts: [
+        'It measures how blurry the generated images are',
+        'It penalizes the model when the encoder\'s distribution q(z|x) drifts far from the standard normal prior N(0,I)',
+        'It computes the reconstruction error between x and x̂',
+        'It controls the learning rate'
+      ],
+      correct: 1,
+      feedback: '✅ Correct! The KL term acts as a regularizer — it keeps the latent distributions from collapsing to arbitrary points and ensures the space remains smooth and continuous, so we can sample from it at generation time.'
+    },
+    render() { return this._quizHTML(); }
+  },
+
+  // ── 6 Reparameterization Trick ────────────────────────────────────────────
+  {
+    tag:'concept', tagLabel:'Reparameterization Trick',
+    render() {
+      return `
+      <h2>🎲 The Reparameterization Trick</h2>
+      <p>We need to <b>backpropagate</b> through the sampling step z ~ N(μ, σ²). But sampling is a random operation — gradients can't flow through randomness!</p>
+      <div class="cols">
+        <div class="col-card" style="border-left: 3px solid #c2185b">
+          <h4>❌ Original (broken for backprop)</h4>
+          <p>z ~ N(μ(x), σ(x)²)</p>
+          <p>The stochastic node z blocks gradient flow to μ and σ.</p>
+        </div>
+        <div class="col-card" style="border-left: 3px solid #2e7d32">
+          <h4>✅ Reparameterized</h4>
+          <p><b>ε ~ N(0, I)</b> — sample this separately</p>
+          <p><b>z = μ + σ · ε</b></p>
+          <p>Now z is a deterministic function of μ and σ!</p>
+        </div>
+      </div>
+      <div class="diagram" style="margin-top:12px">
+        <p style="font-size:13px;font-weight:600;margin-bottom:10px;text-align:center">How gradients flow now:</p>
+        <div class="flow" style="justify-content:center;gap:8px">
+          <div class="flow-box" style="background:#fce4ec">Loss</div>
+          <div class="arrow">←</div>
+          <div class="flow-box" style="background:#eef1ff">x̂ (output)</div>
+          <div class="arrow">←</div>
+          <div class="flow-box" style="background:#fff3e0">Decoder</div>
+          <div class="arrow">←</div>
+          <div class="flow-box" style="background:#f3e5f5">z = μ+σ·ε</div>
+          <div class="arrow">←</div>
+          <div style="text-align:center">
+            <div class="flow-box" style="border-color:#9c27b0;background:#f3e5f5;margin-bottom:4px">μ, σ<span class="sub">← grads flow here!</span></div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:#888;text-align:center;margin-top:8px">ε (the noise) is sampled externally — it's not a parameter, so we don't need gradients for it.</p>
+      </div>
+      <div class="insight green">
+        <b>🧠 Analogy:</b> Instead of "generate a random number from N(μ,σ²)", we say "generate a random number from N(0,1), then shift and scale it." The shift/scale operation is differentiable!
+      </div>`;
+    }
+  },
+
+  // ── 7 Loss Function ───────────────────────────────────────────────────────
+  {
+    tag:'math', tagLabel:'Loss Function',
+    render() {
+      return `
+      <h2>📉 The VAE Loss Function</h2>
+      <p>Putting it all together. The VAE loss is:</p>
+      <div class="math-block">Loss = <span class="math-key">Reconstruction Loss</span> + <span class="math-val">KL Divergence</span>
+
+<span class="math-key">Reconstruction:</span>
+  min |x - x̂|²    (MSE, or binary cross-entropy)
+
+<span class="math-val">KL divergence</span> (closed-form for Gaussian):
+  -0.5 × Σ(1 + log σ² - σ² - μ²)
+
+<span class="math-comment">// Combined:</span>
+Loss = |x - x̂|² - 0.5 × (1 + log σ² - σ² - μ²)</div>
+      <div class="insight">
+        <b>Why does KL have a closed form?</b> Because both distributions are Gaussian — q(z|x) = N(μ, σ²) and p(z) = N(0,1). The KL between two Gaussians has an exact formula, no need to approximate!
+      </div>
+      <h3 style="margin-top:14px">Tension between the two terms</h3>
+      <div class="cols">
+        <div class="col-card" style="border-top:3px solid #4f6ef7">
+          <h4>Reconstruction pushes:</h4>
+          <p>Make q(z|x) very specific to each input x. Spread out μ values so each x maps to a different region.</p>
+        </div>
+        <div class="col-card" style="border-top:3px solid #e67e22">
+          <h4>KL term pushes:</h4>
+          <p>Keep q(z|x) close to N(0,I). Don't let distributions collapse to points or spread too far apart.</p>
+        </div>
+      </div>
+      <p style="margin-top:10px">This tension is what creates a <b>smooth, organized latent space</b>. Similar images end up near each other!</p>`;
+    }
+  },
+
+  // ── 8 Quiz 3 ──────────────────────────────────────────────────────────────
+  {
+    tag:'quiz', tagLabel:'Quick Check',
+    quiz: {
+      q: 'During the Reparameterization Trick, we write z = μ + σ·ε where ε ~ N(0,I). Why does this help?',
+      opts: [
+        'It makes the model deterministic, which is easier to train',
+        'The randomness is moved to ε (which has no parameters), so gradients can flow to μ and σ through the deterministic operation z = μ + σ·ε',
+        'It reduces the size of the latent space',
+        'It eliminates the need for a KL divergence term'
+      ],
+      correct: 1,
+      feedback: '✅ Spot on! ε is just noise we sample from a fixed distribution with no learned parameters. The actual learned parameters μ and σ are now connected to z via a differentiable formula, so backprop works perfectly.'
+    },
+    render() { return this._quizHTML(); }
+  },
+
+  // ── 9 Variants ────────────────────────────────────────────────────────────
+  {
+    tag:'concept', tagLabel:'Variants & Limitations',
+    render() {
+      return `
+      <h2>🔬 VAE Variants & Limitations</h2>
+      <h3>β-VAE: Disentangled Representations</h3>
+      <div class="math-block">L = E[log p(x|z)] - <span class="math-key">β</span> · KL(q(z|x) ‖ p(z))</div>
+      <p>A single hyperparameter β scales the KL term. When β > 1, you force the model to encode information in <b>fewer, more independent latent dimensions</b>.</p>
+      <div class="insight green">
+        <b>🧩 Disentanglement example:</b> A β-VAE trained on faces might learn that <em>one</em> latent dimension controls rotation, <em>another</em> controls lighting, <em>another</em> controls hair color — each independently!
+      </div>
+      <h3 style="margin-top:14px">Conditional VAE (CVAE)</h3>
+      <p>Feed a label <b>y</b> (e.g., "digit 7") into both encoder and decoder. Now you can generate data conditioned on y — ask it to generate a specific digit!</p>
+      <h3 style="margin-top:14px">⚠️ Known Limitations</h3>
+      <div class="cols">
+        <div class="col-card" style="border-left:3px solid #e53935">
+          <h4>Blurry outputs</h4>
+          <p>Averaging over the distribution causes soft, blurry reconstructions. GANs fix this.</p>
+        </div>
+        <div class="col-card" style="border-left:3px solid #e53935">
+          <h4>Posterior collapse</h4>
+          <p>The decoder may learn to ignore z entirely and just memorize averages.</p>
+        </div>
+        <div class="col-card" style="border-left:3px solid #f57c00">
+          <h4>Gaussian assumption</h4>
+          <p>Real data distributions might not be well-captured by Gaussians.</p>
+        </div>
+        <div class="col-card" style="border-left:3px solid #f57c00">
+          <h4>Hard to balance</h4>
+          <p>KL weight needs tuning. Too high → blurry, too low → not generative.</p>
+        </div>
+      </div>`;
+    }
+  },
+
+  // ── 10 Final Quiz ─────────────────────────────────────────────────────────
+  {
+    tag:'quiz', tagLabel:'Final Quiz',
+    quiz: {
+      q: 'In a β-VAE, what happens when you increase β significantly above 1?',
+      opts: [
+        'The model gets better reconstruction but loses generative ability',
+        'The latent space becomes more disentangled — each dimension captures an independent factor of variation — but reconstruction may get worse',
+        'The model trains faster because the loss is smaller',
+        'The model ignores the input and generates random noise'
+      ],
+      correct: 1,
+      feedback: '✅ Right! A larger β puts more pressure on the KL term, forcing the model to compress information into fewer, more independent latent dimensions. This creates disentangled representations — great for interpretability — but at the cost of reconstruction quality.'
+    },
+    render() { return this._quizHTML(); }
+  },
+
+  // ── 11 Summary ────────────────────────────────────────────────────────────
+  {
+    tag:'insight', tagLabel:'Summary',
+    render() {
+      return `
+      <div class="emoji-header">🎉</div>
+      <h2>You got through it! Here's the full picture:</h2>
+      <ul class="check-list">
+        <li><b>Regular AEs</b> map inputs to fixed latent points — great for compression, useless for generation.</li>
+        <li><b>VAEs</b> map inputs to <em>distributions</em> q(z|x) = N(μ,σ²) — enabling smooth, sampleable latent spaces.</li>
+        <li>We can't compute p(z|x) directly (intractable), so we <b>approximate it</b> using variational inference.</li>
+        <li>Instead of minimizing KL directly, we <b>maximize the ELBO</b>: reconstruction + KL regularization.</li>
+        <li>The <b>Reparameterization Trick</b> (z = μ + σ·ε, ε~N(0,I)) makes backpropagation possible through sampling.</li>
+        <li>Loss = reconstruction error + KL penalty. These two terms create a smooth, organized latent space.</li>
+        <li><b>β-VAE</b> adds a weight β to KL — higher β = more disentangled but blurrier outputs.</li>
+        <li>VAEs produce <b>blurry images</b> — this motivated the development of GANs and Diffusion Models!</li>
+      </ul>
+      <div class="insight" style="margin-top:16px">
+        <b>🔗 Connection to what's next:</b> The blurriness of VAEs is exactly why researchers developed <b>GANs</b> (adversarial training) and eventually <b>Diffusion Models</b> (which dominate today). VAEs are the conceptual foundation!
+      </div>
+      <p style="margin-top:12px">Want to go deeper on any section? Just ask! 💬</p>`;
+    }
+  },
+];
+
+// ── Quiz mixin ─────────────────────────────────────────────────────────────
+sections.forEach(s => {
+  if (s.tag === 'quiz') {
+    s._quizHTML = function() {
+      const q = this.quiz;
+      return `
+      <h2>❓ Quick Check</h2>
+      <p style="font-size:15px;font-weight:600;margin-bottom:4px">${q.q}</p>
+      <div class="quiz-options" id="opts-${s._idx}">
+        ${q.opts.map((o,i)=>`<button class="quiz-opt" data-idx="${i}" onclick="answer(${s._idx},${i})">${o}</button>`).join('')}
+      </div>
+      <div id="fb-${s._idx}" style="display:none" class="quiz-feedback"></div>`;
+    };
+  }
+});
+
+// ── State ──────────────────────────────────────────────────────────────────
+let current = 0;
+let answered = {};
+sections.forEach((s,i) => s._idx = i);
+
+function updateProgress() {
+  const pct = Math.round((current / (sections.length - 1)) * 100);
+  document.getElementById('pb').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `Section ${current + 1} of ${sections.length}`;
+}
+
+function renderSection(idx) {
+  const s = sections[idx];
+  const tagColors = {concept:'tag-concept',visual:'tag-visual',quiz:'tag-quiz',math:'tag-math',insight:'tag-insight'};
+  const html = `
+    <div class="section-card">
+      <span class="section-tag ${tagColors[s.tag] || 'tag-concept'}">${s.tagLabel}</span>
+      ${s.render()}
+      <div class="nav">
+        <button class="btn btn-secondary" onclick="go(-1)" ${idx===0?'disabled':''}>← Back</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="btn-next" onclick="go(1)" ${idx===sections.length-1?'disabled':''}>Next →</button>
+      </div>
+    </div>`;
+  document.getElementById('sections-container').innerHTML = html;
+  updateProgress();
+  // Restore answered quiz state
+  if (s.tag === 'quiz' && answered[idx] !== undefined) {
+    restoreQuiz(idx, answered[idx]);
+  }
+}
+
+function go(dir) {
+  current = Math.max(0, Math.min(sections.length - 1, current + dir));
+  renderSection(current);
+  document.getElementById('app').scrollIntoView({behavior:'smooth'});
+}
+
+function answer(secIdx, optIdx) {
+  if (answered[secIdx] !== undefined) return;
+  answered[secIdx] = optIdx;
+  restoreQuiz(secIdx, optIdx);
+}
+
+function restoreQuiz(secIdx, optIdx) {
+  const s = sections[secIdx];
+  const q = s.quiz;
+  const opts = document.querySelectorAll(`#opts-${secIdx} .quiz-opt`);
+  opts.forEach(o => o.classList.add('answered'));
+  opts.forEach(o => { o.onclick = null; });
+  const chosen = opts[optIdx];
+  const fb = document.getElementById(`fb-${secIdx}`);
+  if (optIdx === q.correct) {
+    chosen.classList.add('correct');
+    fb.className = 'quiz-feedback feedback-ok';
+    fb.textContent = q.feedback;
+  } else {
+    chosen.classList.add('wrong');
+    opts[q.correct].classList.add('correct');
+    fb.className = 'quiz-feedback feedback-bad';
+    fb.textContent = '🤔 Not quite — ' + q.feedback;
+  }
+  fb.style.display = 'block';
+}
+
+// Boot
+renderSection(0);
+</script>
+</body>
+</html>
