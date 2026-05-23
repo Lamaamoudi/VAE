@@ -1,0 +1,373 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-1,#f4f4f8); color: var(--text-1,#1a1a1a); }
+  #app { max-width: 760px; margin: 0 auto; padding: 16px; }
+
+  /* Progress */
+  .pbar-wrap { background: #e0e0e0; border-radius: 8px; height: 5px; margin-bottom: 6px; }
+  .pbar-fill { background: #4f6ef7; height: 5px; border-radius: 8px; transition: width .4s; }
+  .pbar-label { font-size: 12px; color: #888; text-align: right; margin-bottom: 14px; }
+
+  .card { background: var(--bg-0,#fff); border-radius: 16px; padding: 24px; border: 1.5px solid #e8e8e8; }
+
+  .step-pill { display: inline-flex; align-items: center; gap: 6px; background: #eef1ff; color: #4f6ef7; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; }
+
+  h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; line-height: 1.3; }
+  p  { font-size: 14px; line-height: 1.75; color: #333; margin-bottom: 10px; }
+  .big { font-size: 16px; font-weight: 600; }
+
+  /* Analogy boxes */
+  .analogy { border-radius: 12px; padding: 14px 16px; margin: 14px 0; }
+  .analogy.blue  { background: #eef1ff; border-left: 4px solid #4f6ef7; }
+  .analogy.green { background: #e8f5e9; border-left: 4px solid #2e7d32; }
+  .analogy.orange{ background: #fff3e0; border-left: 4px solid #f57c00; }
+  .analogy.pink  { background: #fce4ec; border-left: 4px solid #e91e63; }
+  .analogy.purple{ background: #f3e5f5; border-left: 4px solid #8e24aa; }
+  .analogy-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; opacity: .7; }
+  .analogy p { margin: 0; }
+
+  /* Notation decoder */
+  .notation-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+  .notation-row:last-child { border-bottom: none; }
+  .notation-box { background: #1e1e2e; color: #89b4fa; font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; padding: 8px 14px; border-radius: 8px; min-width: 90px; text-align: center; flex-shrink: 0; }
+  .notation-meaning { font-size: 14px; color: #333; flex: 1; }
+  .notation-meaning strong { color: #4f6ef7; }
+
+  /* Visual scene */
+  .scene { background: #f8f8fc; border-radius: 12px; padding: 16px; margin: 14px 0; }
+  .scene-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #888; margin-bottom: 10px; }
+  .scene-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .scene-emoji { font-size: 36px; }
+  .scene-arrow { font-size: 22px; color: #bbb; }
+  .scene-box { background: #fff; border: 2px solid #e0e0e0; border-radius: 10px; padding: 10px 14px; font-size: 13px; text-align: center; }
+  .scene-box.highlight { border-color: #4f6ef7; background: #eef1ff; }
+  .scene-box.green { border-color: #2e7d32; background: #e8f5e9; }
+  .scene-box.orange { border-color: #f57c00; background: #fff3e0; }
+  .scene-box small { display: block; font-size: 11px; color: #888; margin-top: 2px; }
+
+  /* Likelihood meter */
+  .meter-wrap { margin: 14px 0; }
+  .meter-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .meter-bar { height: 22px; background: #eee; border-radius: 20px; overflow: hidden; position: relative; }
+  .meter-fill { height: 100%; border-radius: 20px; display: flex; align-items: center; padding-left: 10px; font-size: 12px; font-weight: 700; color: #fff; transition: width .6s; }
+  .meter-bad  { background: linear-gradient(90deg,#e53935,#ef9a9a); }
+  .meter-good { background: linear-gradient(90deg,#43a047,#a5d6a7); }
+  .meter-best { background: linear-gradient(90deg,#1e88e5,#90caf9); }
+
+  /* Log visualizer */
+  .prob-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; flex-wrap: wrap; }
+  .prob-chip { background: #f0f0f0; border-radius: 6px; padding: 4px 10px; font-family: monospace; font-size: 13px; }
+  .prob-chip.red  { background: #ffebee; color: #b71c1c; }
+  .prob-chip.blue { background: #e3f2fd; color: #0d47a1; }
+  .prob-chip.green{ background: #e8f5e9; color: #1b5e20; }
+
+  /* Nav */
+  .nav { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
+  .btn { padding: 10px 20px; border-radius: 9px; border: none; cursor: pointer; font-size: 14px; font-weight: 700; }
+  .btn-primary { background: #4f6ef7; color: #fff; }
+  .btn-secondary { background: #ececec; color: #333; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn:hover:not(:disabled) { opacity: .85; }
+  .spacer { flex: 1; }
+
+  /* Interactive quiz */
+  .q-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .q-opt { padding: 11px 14px; border-radius: 9px; border: 2px solid #e0e0e0; cursor: pointer; font-size: 14px; background: #fff; text-align: left; }
+  .q-opt:hover:not(.done) { border-color: #4f6ef7; background: #f0f2ff; }
+  .q-opt.correct { border-color: #2e7d32; background: #e8f5e9; font-weight: 700; }
+  .q-opt.wrong   { border-color: #c62828; background: #ffebee; }
+  .q-fb { margin-top: 10px; padding: 10px 14px; border-radius: 9px; font-size: 14px; font-weight: 500; display: none; }
+  .fb-ok  { background: #e8f5e9; color: #1b5e20; }
+  .fb-bad { background: #fff3e0; color: #bf360c; }
+
+  /* Likelihood interactive */
+  .model-row { display: flex; gap: 10px; margin: 10px 0; align-items: center; }
+  .model-face { font-size: 30px; cursor: pointer; transition: transform .2s; border: 3px solid transparent; border-radius: 12px; padding: 6px; }
+  .model-face:hover { transform: scale(1.15); }
+  .model-face.selected { border-color: #4f6ef7; background: #eef1ff; }
+  .likelihood-result { background: #f5f5f5; border-radius: 10px; padding: 12px; margin-top: 10px; font-size: 14px; min-height: 50px; display: none; }
+</style>
+
+<div id="app">
+  <div class="pbar-wrap"><div class="pbar-fill" id="pb" style="width:0%"></div></div>
+  <div class="pbar-label" id="plabel">Concept 1 of 6</div>
+  <div class="card" id="content"></div>
+</div>
+
+<script>
+let cur = 0;
+
+const steps = [
+
+// ── 0 ──────────────────────────────────────────────────────────────────────
+{
+title: "🧠 Let's fix the math confusion — no formulas, just ideas",
+html: `
+<div class="step-pill">📌 Why this matters</div>
+<h2>You're not bad at math.<br>The notation is just ugly.</h2>
+<p>When the lecture writes things like <code>q(z|x)</code> or <code>p(x|z)</code>, it looks terrifying. But each of those is just answering a simple question in plain English. Let's decode every piece one at a time.</p>
+<div class="analogy blue">
+  <div class="analogy-title">What we'll cover</div>
+  <p>① What does <code>p(something)</code> even mean? → <b>Probability</b><br>
+  ② What does the <code>|</code> mean? → <b>"Given that..."</b><br>
+  ③ What are x and z? → <b>Image and description</b><br>
+  ④ What is <b>likelihood</b>? → Detective analogy<br>
+  ⑤ Why <b>maximize</b> it? → Getting the model smarter<br>
+  ⑥ What does <b>log</b> do? → A practical trick</p>
+</div>
+<p>Hit <b>Next</b> to go one step at a time. We'll rebuild your understanding from zero. 💪</p>
+`},
+
+// ── 1 ──────────────────────────────────────────────────────────────────────
+{
+title: "① What does p( ) mean?",
+html: `
+<div class="step-pill">📌 Probability</div>
+<h2>p( ) just means "how likely is this?"</h2>
+<p>Whenever you see <b>p(something)</b>, just read it as: <em>"What's the chance of this thing happening?"</em></p>
+<div class="scene">
+  <div class="scene-title">Examples in plain English</div>
+  <div class="notation-row">
+    <div class="notation-box">p(🌧️)</div>
+    <div class="notation-meaning">What's the chance it rains today? → maybe <strong>30%</strong></div>
+  </div>
+  <div class="notation-row">
+    <div class="notation-box">p(🐱)</div>
+    <div class="notation-meaning">What's the chance this image is a cat? → maybe <strong>90%</strong></div>
+  </div>
+  <div class="notation-row">
+    <div class="notation-box">p(z)</div>
+    <div class="notation-meaning">What's the chance of picking this particular "description" z? In a VAE, we say <strong>z is normal/Gaussian</strong> — common values are near zero, extremes are rare.</div>
+  </div>
+</div>
+<div class="analogy green">
+  <div class="analogy-title">💡 Key idea</div>
+  <p><b>p( ) is just a probability. A number between 0 and 1.</b> 1 = certain, 0 = impossible. Everything else is in between. That's it.</p>
+</div>
+`},
+
+// ── 2 ──────────────────────────────────────────────────────────────────────
+{
+title: "② What does the | mean?",
+html: `
+<div class="step-pill">📌 Conditional probability</div>
+<h2>The | means "given that I already know..."</h2>
+<p>This is the <b>most important piece</b>. The vertical bar | just means <em>"given"</em> or <em>"assuming I already know"</em>.</p>
+<div class="scene">
+  <div class="scene-title">Real-world examples</div>
+  <div class="notation-row">
+    <div class="notation-box">p(🌧️|☁️)</div>
+    <div class="notation-meaning"><em>"Given that it's cloudy,"</em> what's the chance of rain? → now maybe <strong>70%</strong> (clouds change the odds!)</div>
+  </div>
+  <div class="notation-row">
+    <div class="notation-box">p(x|z)</div>
+    <div class="notation-meaning"><em>"Given I have description z,"</em> how likely is this particular image x? → This is the <strong>decoder's job</strong></div>
+  </div>
+  <div class="notation-row">
+    <div class="notation-box">q(z|x)</div>
+    <div class="notation-meaning"><em>"Given I see image x,"</em> what description z fits it? → This is the <strong>encoder's job</strong></div>
+  </div>
+</div>
+<div class="analogy orange">
+  <div class="analogy-title">🔗 How they connect</div>
+  <p><b>Encoder</b> = q(z|x) → "I see a cat photo, what description z should I use?"<br>
+  <b>Decoder</b> = p(x|z) → "I have description z='fluffy, pointy ears', how likely is this cat image?"</p>
+</div>
+`},
+
+// ── 3 ──────────────────────────────────────────────────────────────────────
+{
+title: "③ What are x and z?",
+html: `
+<div class="step-pill">📌 Variables</div>
+<h2>x = the image. z = the hidden description.</h2>
+<p>These are just names. You could call them "image" and "description" — the math uses single letters to save space.</p>
+<div class="scene">
+  <div class="scene-row" style="justify-content:center;gap:20px">
+    <div style="text-align:center">
+      <div style="font-size:48px">🐱</div>
+      <div class="scene-box highlight" style="margin-top:8px"><b>x</b><small>the actual image<br>(784 pixel values)</small></div>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <div class="scene-arrow">⟺</div>
+      <div style="font-size:11px;color:#888;margin-top:4px">encoder/decoder</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:48px">📝</div>
+      <div class="scene-box green" style="margin-top:8px"><b>z</b><small>hidden description<br>[0.8, -0.3, 1.2, ...]</small></div>
+    </div>
+  </div>
+</div>
+<p>In real VAEs, z is a list of numbers — say 20 numbers — that capture the <em>essence</em> of the image. One number might encode "how round is the face", another "is it smiling", etc.</p>
+<div class="analogy purple">
+  <div class="analogy-title">🎭 Think of it like this</div>
+  <p>If x is a full passport photo, then z is the passport data: <em>height=178cm, eye=brown, hair=dark, age=25...</em>. Much smaller, but enough to reconstruct the photo roughly.</p>
+</div>
+<div class="analogy blue">
+  <div class="analogy-title">💡 Why "latent"?</div>
+  <p>z is called the <b>latent</b> variable because it's <b>hidden</b> — we never directly observe it. We only see x (the images). The model has to figure out z on its own.</p>
+</div>
+`},
+
+// ── 4 ──────────────────────────────────────────────────────────────────────
+{
+title: "④ What is Likelihood?",
+html: `
+<div class="step-pill">📌 Likelihood</div>
+<h2>Likelihood = how well does our model explain what we see?</h2>
+<div class="analogy orange">
+  <div class="analogy-title">🕵️ The Detective Analogy</div>
+  <p>Imagine you're a detective. A crime happened (the data you observed = x). You have a theory (your model). <b>Likelihood asks: "If my theory is correct, how probable is the evidence I see?"</b></p>
+</div>
+<p>In our case: we have thousands of cat and dog images (the data = x). Our model is a VAE with parameters θ. The likelihood p(x) asks:</p>
+<p class="big" style="text-align:center;padding:10px;background:#f8f8fc;border-radius:8px">"If this model is correct, how likely is it that our training images exist?"</p>
+
+<div class="meter-wrap">
+  <div class="meter-label"><span>Bad model — barely explains the data</span><span>2%</span></div>
+  <div class="meter-bar"><div class="meter-fill meter-bad" style="width:5%">😢</div></div>
+</div>
+<div class="meter-wrap">
+  <div class="meter-label"><span>Decent model — explains some patterns</span><span>40%</span></div>
+  <div class="meter-bar"><div class="meter-fill meter-good" style="width:40%">🙂</div></div>
+</div>
+<div class="meter-wrap">
+  <div class="meter-label"><span>Great model — fits the data well</span><span>85%</span></div>
+  <div class="meter-bar"><div class="meter-fill meter-best" style="width:85%">🎯</div></div>
+</div>
+<p style="margin-top:12px"><b>Training = tuning the model until it assigns high likelihood to our real data.</b> The better the model, the higher the likelihood it gives to images that actually exist.</p>
+`},
+
+// ── 5 ──────────────────────────────────────────────────────────────────────
+{
+title: "⑤ Why maximize likelihood?",
+html: `
+<div class="step-pill">📌 Maximizing</div>
+<h2>Maximizing likelihood = making the model smarter</h2>
+<p>We have our training images. We want the model to say <em>"yes, these images make total sense!"</em> — i.e., assign them <b>high probability</b>.</p>
+<div class="scene">
+  <div class="scene-title">Interactive: click an image — which model is better?</div>
+  <p style="font-size:13px;margin-bottom:8px">The real data is: 🐱🐱🐱🐱🐱 (all cats). Which model learned correctly?</p>
+  <div class="model-row">
+    <div style="text-align:center">
+      <div class="model-face" id="m1" onclick="pickModel(1)">🤖</div>
+      <div style="font-size:12px;margin-top:4px;color:#555">Model A</div>
+      <div style="font-size:11px;color:#888">p(🐱) = <b>0.02</b><br>p(🐶) = <b>0.95</b></div>
+    </div>
+    <div style="text-align:center">
+      <div class="model-face" id="m2" onclick="pickModel(2)">🤖</div>
+      <div style="font-size:12px;margin-top:4px;color:#555">Model B</div>
+      <div style="font-size:11px;color:#888">p(🐱) = <b>0.88</b><br>p(🐶) = <b>0.04</b></div>
+    </div>
+    <div style="text-align:center">
+      <div class="model-face" id="m3" onclick="pickModel(3)">🤖</div>
+      <div style="font-size:12px;margin-top:4px;color:#555">Model C</div>
+      <div style="font-size:11px;color:#888">p(🐱) = <b>0.50</b><br>p(🐶) = <b>0.50</b></div>
+    </div>
+  </div>
+  <div class="likelihood-result" id="lresult"></div>
+</div>
+<div class="analogy green">
+  <div class="analogy-title">💡 The training loop</div>
+  <p>Training = repeatedly asking <em>"what parameters θ make the model assign the highest likelihood to our actual data?"</em> and nudging θ in that direction (gradient descent). When likelihood is maximized, the model has <b>learned the data distribution</b>.</p>
+</div>
+`},
+
+// ── 6 ──────────────────────────────────────────────────────────────────────
+{
+title: "⑥ Why log? And why does it matter?",
+html: `
+<div class="step-pill">📌 Log-likelihood</div>
+<h2>log is just a math trick to avoid tiny numbers exploding</h2>
+<p>Imagine you have 1000 training images. Each has a probability, like 0.7, 0.6, 0.8, etc. To get the <em>total</em> likelihood of all of them, you'd multiply:</p>
+<div class="prob-row">
+  <span class="prob-chip red">0.7</span> × <span class="prob-chip red">0.6</span> × <span class="prob-chip red">0.8</span> × ... × <span class="prob-chip red">0.9</span>
+  <span style="color:#888">= 0.000000000000...😱</span>
+</div>
+<p>After just a few hundred multiplications, the number becomes so tiny (like 10⁻³⁰⁰) that computers can't store it — it just becomes zero. This is called <b>numerical underflow</b>.</p>
+<div class="analogy orange">
+  <div class="analogy-title">🪄 The log trick</div>
+  <p>log turns <b>multiplication into addition</b>. Because of a math rule: <b>log(A × B) = log(A) + log(B)</b></p>
+</div>
+<div class="prob-row">
+  <span style="color:#888">Instead of multiplying:</span>
+  <span class="prob-chip red">0.7 × 0.6 × 0.8...</span>
+</div>
+<div class="prob-row">
+  <span style="color:#888">We add:</span>
+  <span class="prob-chip blue">log(0.7)</span> + <span class="prob-chip blue">log(0.6)</span> + <span class="prob-chip blue">log(0.8)</span>...
+  <span style="color:#888">=</span> <span class="prob-chip green">manageable number ✅</span>
+</div>
+<p style="margin-top:10px">Also: <b>log is monotonically increasing</b> — meaning if log(A) > log(B), then A > B too. So <em>maximizing log p(x) is exactly the same as maximizing p(x)</em> — just easier for computers.</p>
+<div class="analogy blue">
+  <div class="analogy-title">💡 Summary: why log p(x)?</div>
+  <p>1. <b>Avoids numbers becoming zero</b> (underflow problem)<br>
+  2. <b>Turns × into +</b> (much faster computation)<br>
+  3. <b>Same answer</b> — maximizing log p(x) = maximizing p(x)</p>
+</div>
+<p>That's it! When the lecture writes "maximize log p(x)" — it literally just means "make the model assign higher probability to real data, but use log to keep the numbers manageable."</p>
+`},
+
+// ── 7 ──────────────────────────────────────────────────────────────────────
+{
+title: "🎉 Now re-read the ELBO — it makes sense!",
+html: `
+<div class="step-pill">✅ Putting it all together</div>
+<h2>The ELBO, decoded in plain English</h2>
+<p>Here's what the lecture wrote, and here's what every symbol now means:</p>
+<div style="background:#1e1e2e;color:#cdd6f4;border-radius:12px;padding:16px;font-family:monospace;font-size:14px;line-height:2;margin:12px 0">
+  log p(x) ≥ <span style="color:#a6e3a1">E[log p(x|z)]</span> − <span style="color:#f38ba8">KL(q(z|x) ‖ p(z))</span>
+</div>
+<div class="notation-row">
+  <div class="notation-box" style="background:#1e2e1e;color:#a6e3a1;font-size:13px">log p(x)</div>
+  <div class="notation-meaning">"How well does our model explain the images?" (log = trick for computers)</div>
+</div>
+<div class="notation-row">
+  <div class="notation-box" style="background:#1e2e1e;color:#a6e3a1;font-size:12px">E[log p(x|z)]</div>
+  <div class="notation-meaning"><b>Reconstruction term:</b> On average, how likely is the real image given the description z the encoder produced? = "Does the decoder produce something close to the original?"</div>
+</div>
+<div class="notation-row">
+  <div class="notation-box" style="background:#2e1e1e;color:#f38ba8;font-size:12px">KL(q(z|x)‖p(z))</div>
+  <div class="notation-meaning"><b>Regularization term:</b> How different is the encoder's distribution from a standard Gaussian? = "Is the latent space staying organized and smooth?"</div>
+</div>
+<div class="analogy green" style="margin-top:14px">
+  <div class="analogy-title">🗣️ In one sentence</div>
+  <p><b>"Train the model so the decoder reconstructs images well AND the encoder keeps the latent space organized."</b> That's all the ELBO says.</p>
+</div>
+<p style="margin-top:10px">You're ready to go back to the interactive lesson now! 🚀 Section 4 will feel completely different.</p>
+`}
+];
+
+function pickModel(n) {
+  ['m1','m2','m3'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('m'+n).classList.add('selected');
+  const r = document.getElementById('lresult');
+  r.style.display = 'block';
+  if (n===1) { r.style.background='#ffebee'; r.style.color='#b71c1c'; r.innerHTML='❌ <b>Model A</b> thinks the data is almost impossible (p=0.02)! It learned the wrong thing — it predicts dogs when all training data is cats. Likelihood is very low.'; }
+  else if (n===2) { r.style.background='#e8f5e9'; r.style.color='#1b5e20'; r.innerHTML='✅ <b>Model B</b> assigns 88% probability to cats — it learned well! High likelihood = the model explains the training data. This is what we want.'; }
+  else { r.style.background='#fff8e1'; r.style.color='#e65100'; r.innerHTML='⚠️ <b>Model C</b> is confused — it gives 50/50 to everything. It hasn\'t learned anything specific. Medium likelihood = mediocre model.'; }
+}
+
+function render() {
+  const s = steps[cur];
+  const pct = Math.round((cur / (steps.length-1)) * 100);
+  document.getElementById('pb').style.width = pct+'%';
+  document.getElementById('plabel').textContent = `Concept ${cur+1} of ${steps.length}`;
+  document.getElementById('content').innerHTML = `
+    <div class="step-pill">Step ${cur+1} of ${steps.length}</div>
+    ${s.html}
+    <div class="nav">
+      <button class="btn btn-secondary" onclick="go(-1)" ${cur===0?'disabled':''}>← Back</button>
+      <div class="spacer"></div>
+      <button class="btn btn-primary" onclick="go(1)" ${cur===steps.length-1?'disabled':''}>Next →</button>
+    </div>`;
+}
+
+function go(d) {
+  cur = Math.max(0, Math.min(steps.length-1, cur+d));
+  render();
+  document.getElementById('app').scrollIntoView({behavior:'smooth'});
+}
+
+render();
+</script>
