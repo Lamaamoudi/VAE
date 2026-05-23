@@ -11,6 +11,7 @@
             --text-color: #c9d1d9;
             --accent-color: #58a6ff;
             --border-color: #30363d;
+            --group-bg: #10151d;
         }
 
         body {
@@ -49,6 +50,37 @@
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Special Styling for the Concept Box Group */
+        .math-group-box {
+            width: 90%;
+            max-width: 864px;
+            background-color: var(--group-bg);
+            border: 2px dashed #388bfd;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 1rem;
+            box-sizing: border-box;
+        }
+
+        .group-title {
+            color: #58a6ff;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.3rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .math-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.5rem;
         }
 
         .card {
@@ -111,23 +143,32 @@
     </header>
 
     <div class="container">
-        
-        <a href="vae_interactive_lecture.html" class="card">
-            <h2>VAE Interactive Lecture</h2>
-            <p>An interactive guide covering the concepts, mathematics, and architecture of Variational Autoencoders.</p>
-        </a>
-
         <a href="ae_vs_vae_latent_space.html" class="card">
             <h2>AE vs VAE Latent Space</h2>
             <p>Explore the visual and structural differences between Autoencoder and Variational Autoencoder latent spaces.</p>
         </a>
 
-        <a href="vae_math_intuition_explainer.html" class="card">
-            <h2>VAE Math Intuition Explainer</h2>
-            <p>A deep dive into the mathematical concepts behind Variational Autoencoders, made intuitive and easy to follow.</p>
+        <a href="vae_interactive_lecture.html" class="card">
+            <h2>VAE Interactive Lecture</h2>
+            <p>An interactive guide covering the concepts, mathematics, and architecture of Variational Autoencoders.</p>
         </a>
+    </div>
 
+    <div class="math-group-box">
+        <div class="group-title">📐 Mathematical Foundations</div>
+        
+        <div class="math-grid">
+            <a href="vae_math_intuition_explainer.html" class="card">
+                <h2>VAE Math Intuition</h2>
+                <p>A deep dive into the mathematical concepts behind Variational Autoencoders, made intuitive and easy to follow.</p>
+            </a>
+
+            <a href="elbo_deep_intuition.html" class="card">
+                <h2>ELBO Deep Intuition</h2>
+                <p>An in-depth breakdown of the Evidence Lower Bound (ELBO) and its crucial role in optimization theory.</p>
+            </a>
         </div>
+    </div>
 
     <footer>
         Shared via GitHub Pages
@@ -135,4 +176,3 @@
 
 </body>
 </html>
-
