@@ -185,23 +185,6 @@
             line-height: 1.5;
         }
 
-        /* Empty State Box Styling */
-        .empty-box {
-            width: 90%;
-            max-width: 900px;
-            background-color: var(--card-bg);
-            border: 1px dashed var(--border-color);
-            border-radius: 16px;
-            padding: 4rem 2rem;
-            text-align: center;
-            color: #8b949e;
-        }
-
-        .empty-box-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-
         footer {
             margin-top: auto;
             padding: 2rem;
@@ -213,7 +196,7 @@
 <body>
 
     <header>
-        <h1>Learning KAUST Academy Artificial Intelligence Summer 2026</h1>
+        <h1>Generative Models Learning Hub</h1>
         <p>Choose a track below to explore structural components and mathematics.</p>
     </header>
 
@@ -267,11 +250,13 @@
     </div>
 
     <div id="autoregressive-content" class="tab-content">
-        <div class="empty-box">
-            <div class="empty-box-icon">🚀</div>
-            <h3>Autoregressive Track Coming Soon</h3>
-            <p>Content regarding PixelCNN, PixelRNN, and Transformers is currently under development. Stay tuned!</p>
-        </div>
+        <div class="container">
+            <a href="Day5_Autoregressive_Models_Interactive.html" class="card">
+                <h2>Autoregressive Models Interactive</h2>
+                <p>An interactive lecture exploring sequential token and pixel generation patterns across autoregressive frameworks.</p>
+            </a>
+            
+            </div>
     </div>
 
     <footer>
@@ -280,15 +265,12 @@
 
     <script>
         function switchTab(tabId, buttonElement) {
-            // Hide all tab contents
             const contents = document.querySelectorAll('.tab-content');
             contents.forEach(content => content.classList.remove('active'));
 
-            // Remove active style from all buttons
             const buttons = document.querySelectorAll('.tab-btn');
             buttons.forEach(btn => btn.classList.remove('active'));
 
-            // Show current tab content and style active button
             document.getElementById(tabId).classList.add('active');
             buttonElement.classList.add('active');
         }
