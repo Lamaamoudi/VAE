@@ -1,0 +1,2353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 Autoregressive Models — Day 5</title>
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)'],['$','$']],
+    displayMath: [['\\[','\\]'],['$$','$$']],
+    tags: 'none'
+  },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] },
+  startup: { typeset: true }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js" async></script>
+<style>
+  :root {
+    --primary: #6c63ff;
+    --secondary: #f5a623;
+    --accent: #00d2d3;
+    --dark: #1a1a2e;
+    --card: #16213e;
+    --text: #e0e0e0;
+    --muted: #a0a0b0;
+    --success: #00b894;
+    --danger: #e17055;
+    --fvsbn: #a29bfe;
+    --nade: #74b9ff;
+    --rnade: #81ecec;
+    --pixelrnn: #fd79a8;
+    --pixelcnn: #fdcb6e;
+    --wavenet: #55efc4;
+    --grad: linear-gradient(135deg, #6c63ff 0%, #00d2d3 100%);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--dark);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.7;
+    scroll-behavior: smooth;
+  }
+
+  /* ---- HERO ---- */
+  .hero {
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    padding: 60px 40px 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(108,99,255,.25) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(0,210,211,.2) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .hero h1 {
+    font-size: 2.6rem; font-weight: 800;
+    background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+  }
+  .hero p { color: var(--muted); font-size: 1.1rem; max-width: 700px; margin: 0 auto 20px; }
+  .badge-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .badge {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 20px; padding: 5px 14px; font-size: .82rem; color: var(--accent);
+  }
+
+  /* ---- LAYOUT ---- */
+  .layout { display: flex; max-width: 1280px; margin: 0 auto; gap: 0; }
+
+  /* ---- SIDEBAR ---- */
+  .sidebar {
+    width: 260px; flex-shrink: 0;
+    background: rgba(255,255,255,.03);
+    border-right: 1px solid rgba(255,255,255,.07);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 24px 0;
+  }
+  .sidebar h3 { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--muted); padding: 0 20px 8px; margin-top: 16px; }
+  .nav-item {
+    display: block; padding: 9px 20px;
+    color: var(--muted); text-decoration: none;
+    font-size: .88rem; transition: all .2s;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+  }
+  .nav-item:hover, .nav-item.active {
+    color: #fff; background: rgba(108,99,255,.12);
+    border-left-color: var(--primary);
+  }
+  .nav-emoji { margin-right: 7px; }
+
+  /* ---- MAIN ---- */
+  .main { flex: 1; padding: 40px 48px; overflow-x: hidden; }
+
+  /* ---- SECTION ---- */
+  .section {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 36px;
+    margin-bottom: 36px;
+    border: 1px solid rgba(255,255,255,.06);
+    scroll-margin-top: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .section::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--grad);
+    border-radius: 16px 16px 0 0;
+  }
+  .section.accent-fvsbn::before { background: linear-gradient(90deg, var(--fvsbn), #6c5ce7); }
+  .section.accent-nade::before  { background: linear-gradient(90deg, var(--nade),  #0984e3); }
+  .section.accent-rnade::before { background: linear-gradient(90deg, var(--rnade), #00cec9); }
+  .section.accent-pixel::before { background: linear-gradient(90deg, var(--pixelrnn), #d63031); }
+  .section.accent-wave::before  { background: linear-gradient(90deg, var(--wavenet), #00b894); }
+  .section.accent-quiz::before  { background: linear-gradient(90deg, var(--secondary), #e17055); }
+
+  .section-title {
+    font-size: 1.55rem; font-weight: 700;
+    color: #fff; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-subtitle { color: var(--muted); font-size: .92rem; margin-bottom: 22px; }
+  .section-title .icon { font-size: 1.6rem; }
+
+  /* ---- CARDS ---- */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 16px; margin: 20px 0; }
+  .card {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 12px; padding: 20px;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .card-icon { font-size: 1.8rem; margin-bottom: 10px; }
+  .card h4 { font-size: 1rem; color: #fff; margin-bottom: 6px; }
+  .card p  { font-size: .86rem; color: var(--muted); }
+
+  /* ---- FORMULA BOX ---- */
+  .formula-box {
+    background: rgba(108,99,255,.12);
+    border: 1px solid rgba(108,99,255,.35);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 18px 0;
+    font-size: 1.1rem;
+    overflow-x: auto;
+    line-height: 2;
+  }
+  .formula-box mjx-container {
+    font-size: 1.15em !important;
+    display: block;
+    text-align: center;
+    margin: 6px 0;
+  }
+  .formula-label {
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--primary); margin-bottom: 8px; font-weight: 600;
+  }
+
+  /* ---- KEY POINT ---- */
+  .keypoint {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: rgba(0,210,211,.07);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px; margin: 12px 0;
+  }
+  .keypoint .kp-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+  .keypoint p { font-size: .92rem; color: var(--text); }
+
+  /* ---- PRO / CON ---- */
+  .pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .pro-box, .con-box {
+    border-radius: 10px; padding: 16px 18px;
+  }
+  .pro-box { background: rgba(0,184,148,.1); border: 1px solid rgba(0,184,148,.3); }
+  .con-box { background: rgba(225,112,85,.1);  border: 1px solid rgba(225,112,85,.3); }
+  .pro-box h5 { color: var(--success); font-size: .88rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .con-box h5 { color: var(--danger);  font-size: .88rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .pc-list { list-style: none; }
+  .pc-list li { font-size: .88rem; padding: 3px 0; display: flex; gap: 8px; }
+  .pro-box .pc-list li::before { content: '✓'; color: var(--success); font-weight: 700; }
+  .con-box .pc-list li::before { content: '✗'; color: var(--danger);  font-weight: 700; }
+
+  /* ---- MODEL TAG ---- */
+  .model-tag {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: .78rem; font-weight: 600;
+    margin: 2px;
+  }
+
+  /* ---- TIMELINE ---- */
+  .timeline { position: relative; padding-left: 30px; margin: 20px 0; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,.1); }
+  .tl-item { position: relative; margin-bottom: 24px; }
+  .tl-dot {
+    position: absolute; left: -26px; top: 6px;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--primary); background: var(--dark);
+  }
+  .tl-year { font-size: .75rem; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .tl-title { font-size: 1rem; color: #fff; font-weight: 600; margin-bottom: 4px; }
+  .tl-desc { font-size: .88rem; color: var(--muted); }
+
+  /* ---- ACCORDION ---- */
+  .accordion { margin: 12px 0; }
+  .acc-header {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 8px;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .95rem; font-weight: 600; color: #fff;
+    transition: background .2s;
+  }
+  .acc-header:hover { background: rgba(255,255,255,.08); }
+  .acc-arrow { transition: transform .3s; font-size: .8rem; }
+  .acc-body {
+    background: rgba(255,255,255,.02);
+    border: 1px solid rgba(255,255,255,.06);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 0 18px;
+    max-height: 0; overflow: hidden;
+    transition: max-height .4s ease, padding .3s;
+  }
+  .acc-body.open { max-height: 1000px; padding: 16px 18px; }
+  .acc-header.open .acc-arrow { transform: rotate(180deg); }
+
+  /* ---- ANIMATED CHAIN RULE ---- */
+  .chain-demo {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    margin: 18px 0; font-size: 1rem;
+  }
+  .chain-token {
+    background: rgba(108,99,255,.2); border: 1px solid rgba(108,99,255,.5);
+    border-radius: 8px; padding: 8px 14px;
+    animation: fadeSlide .5s ease both;
+    font-weight: 600; color: #c3c0ff;
+    cursor: default;
+    transition: background .2s, transform .15s;
+  }
+  .chain-token:hover { background: rgba(108,99,255,.4); transform: scale(1.08); }
+  @keyframes fadeSlide { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform:none; } }
+  .chain-eq { color: var(--secondary); font-size: 1.2rem; font-weight: 700; padding: 0 4px; }
+  .chain-times { color: var(--muted); padding: 0 2px; }
+
+  /* ---- QUIZ ---- */
+  .quiz-q { margin-bottom: 30px; }
+  .quiz-question {
+    font-size: 1rem; font-weight: 600; color: #fff;
+    margin-bottom: 14px; padding: 14px 18px;
+    background: rgba(255,255,255,.04); border-radius: 10px;
+    border-left: 4px solid var(--secondary);
+  }
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-opt {
+    padding: 11px 16px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 8px;
+    cursor: pointer; transition: all .2s;
+    font-size: .92rem;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .quiz-opt:hover { background: rgba(108,99,255,.15); border-color: var(--primary); }
+  .quiz-opt.correct { background: rgba(0,184,148,.15); border-color: var(--success); color: #55efc4; }
+  .quiz-opt.wrong   { background: rgba(225,112,85,.15);  border-color: var(--danger);  color: #fab1a0; }
+  .quiz-opt .opt-letter {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .78rem; font-weight: 700; flex-shrink: 0;
+  }
+  .quiz-feedback {
+    margin-top: 10px; padding: 12px 16px; border-radius: 8px;
+    font-size: .9rem; display: none;
+  }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.correct { background: rgba(0,184,148,.12); color: #55efc4; border: 1px solid rgba(0,184,148,.3); }
+  .quiz-feedback.wrong   { background: rgba(225,112,85,.12);  color: #fab1a0; border: 1px solid rgba(225,112,85,.3); }
+  #quiz-score {
+    text-align: center; padding: 20px;
+    background: rgba(108,99,255,.1); border-radius: 12px;
+    font-size: 1.4rem; font-weight: 700; color: #fff; display: none;
+  }
+  .btn-quiz {
+    background: var(--grad); color: #fff;
+    border: none; border-radius: 8px;
+    padding: 10px 22px; cursor: pointer;
+    font-size: .92rem; font-weight: 600; margin-top: 16px;
+    transition: opacity .2s;
+  }
+  .btn-quiz:hover { opacity: .85; }
+
+  /* ---- FLASHCARDS ---- */
+  .flashcard-wrap { perspective: 1000px; margin: 10px 0; cursor: pointer; }
+  .flashcard {
+    width: 100%; min-height: 130px;
+    position: relative; transform-style: preserve-3d;
+    transition: transform .5s;
+  }
+  .flashcard.flipped { transform: rotateY(180deg); }
+  .fc-front, .fc-back {
+    position: absolute; inset: 0;
+    border-radius: 12px; padding: 22px 24px;
+    backface-visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .fc-front {
+    background: rgba(108,99,255,.15);
+    border: 1px solid rgba(108,99,255,.4);
+    font-size: 1rem; font-weight: 600; color: #fff;
+    flex-direction: column; gap: 8px;
+  }
+  .fc-back {
+    background: rgba(0,210,211,.1);
+    border: 1px solid rgba(0,210,211,.3);
+    transform: rotateY(180deg);
+    font-size: .9rem; color: var(--text);
+  }
+  .fc-hint { font-size: .75rem; color: var(--muted); margin-top: 6px; }
+  .fc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap: 16px; margin: 20px 0; }
+
+  /* ---- PIXEL GRID DEMO ---- */
+  #pixel-demo { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; width: 200px; margin: 16px 0; }
+  .pixel-cell {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.05);
+    transition: all .2s;
+    font-size: .5rem; display: flex; align-items: center; justify-content: center;
+  }
+  .pixel-cell.generated { background: rgba(108,99,255,.6); border-color: var(--primary); }
+  .pixel-cell.current   { background: var(--secondary); border-color: #ffb142; animation: pulse .8s infinite; }
+  .pixel-cell.future    { background: rgba(255,255,255,.03); }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+  #pixel-demo-btn {
+    background: rgba(108,99,255,.2); border: 1px solid rgba(108,99,255,.5);
+    color: var(--primary); border-radius: 8px; padding: 8px 18px;
+    cursor: pointer; font-size: .88rem; font-weight: 600; margin-top: 8px;
+    transition: background .2s;
+  }
+  #pixel-demo-btn:hover { background: rgba(108,99,255,.35); }
+
+  /* ---- MASKED CONV DEMO ---- */
+  .mask-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; width: 200px; margin: 12px 0; }
+  .mask-cell {
+    aspect-ratio: 1; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 700;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .mask-yes  { background: rgba(108,99,255,.5); color: #fff; }
+  .mask-cur  { background: var(--secondary); color: #000; }
+  .mask-no   { background: rgba(255,255,255,.04); color: rgba(255,255,255,.2); }
+
+  /* ---- WAVENET DEMO ---- */
+  .dilated-demo { margin: 16px 0; }
+  .d-layer { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; }
+  .d-node {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .d-node.active { background: var(--accent); color: #000; }
+  .d-node.inactive { background: rgba(255,255,255,.08); color: var(--muted); }
+  .d-label { font-size: .78rem; color: var(--muted); min-width: 90px; }
+  .d-arrow { color: rgba(255,255,255,.2); font-size: .8rem; }
+
+  /* ---- COMPARISON TABLE ---- */
+  .cmp-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .88rem; }
+  .cmp-table th {
+    background: rgba(108,99,255,.2); color: var(--primary);
+    padding: 10px 14px; text-align: left;
+    border-bottom: 2px solid rgba(108,99,255,.3);
+  }
+  .cmp-table td {
+    padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.05);
+    vertical-align: top;
+  }
+  .cmp-table tr:hover td { background: rgba(255,255,255,.03); }
+  .cmp-table td:first-child { font-weight: 600; color: #fff; }
+
+  /* ---- MISC ---- */
+  p { margin-bottom: 10px; }
+  h3 { font-size: 1.1rem; color: #fff; margin: 16px 0 8px; }
+  ul, ol { padding-left: 24px; margin: 8px 0; }
+  li { margin-bottom: 4px; font-size: .92rem; color: var(--text); }
+  code {
+    background: rgba(255,255,255,.08); border-radius: 4px;
+    padding: 1px 6px; font-family: 'Courier New', monospace;
+    font-size: .85em; color: var(--accent);
+  }
+  .highlight { color: var(--secondary); font-weight: 600; }
+  .note-box {
+    background: rgba(245,166,35,.08); border: 1px solid rgba(245,166,35,.25);
+    border-radius: 8px; padding: 14px 16px; margin: 14px 0;
+    font-size: .9rem;
+  }
+  .note-box strong { color: var(--secondary); }
+  .progress-bar-wrap { background: rgba(255,255,255,.08); border-radius: 999px; height: 6px; margin: 8px 0; }
+  .progress-bar { height: 6px; border-radius: 999px; background: var(--grad); transition: width .5s; }
+  /* ---- EXAMPLE BOX ---- */
+  .example-box {
+    background: rgba(245,166,35,.06); border: 1px solid rgba(245,166,35,.2);
+    border-radius: 12px; padding: 20px 22px; margin: 18px 0;
+  }
+  .ex-title { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--secondary); font-weight: 700; margin-bottom: 12px; }
+  /* ---- STEP TRACE ---- */
+  .step-trace { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+  .st-row {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    background: rgba(255,255,255,.03); border-radius: 8px; padding: 10px 14px;
+    border-left: 3px solid var(--primary);
+  }
+  .st-row.s2 { border-left-color: var(--nade); }
+  .st-row.s3 { border-left-color: var(--rnade); }
+  .st-row.s4 { border-left-color: var(--success); }
+  .st-label { font-size: .75rem; color: var(--muted); min-width: 52px; font-weight: 700; flex-shrink:0; }
+  .st-math  { font-family: 'Courier New', monospace; font-size: .82rem; color: var(--text); flex: 1; min-width: 180px; }
+  .st-result {
+    background: rgba(108,99,255,.2); border-radius: 6px;
+    padding: 3px 9px; font-weight: 700; color: var(--primary);
+    font-size: .83rem; white-space: nowrap; flex-shrink:0;
+  }
+  .st-result.good { background: rgba(0,184,148,.2); color: var(--success); }
+  /* ---- FVSBN DIAGRAM ---- */
+  .fvsbn-diagram {
+    display: flex; gap: 8px; align-items: flex-end; overflow-x: auto;
+    padding: 10px 0 18px; margin: 14px 0; flex-wrap: nowrap;
+  }
+  .fvsbn-var { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 100px; }
+  .fvsbn-node {
+    width: 54px; height: 54px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: .95rem; flex-shrink:0;
+  }
+  .fvsbn-node.n1{background:rgba(162,155,254,.25);border:2px solid #a29bfe;color:#a29bfe;}
+  .fvsbn-node.n2{background:rgba(116,185,255,.25);border:2px solid #74b9ff;color:#74b9ff;}
+  .fvsbn-node.n3{background:rgba(129,236,236,.25);border:2px solid #81ecec;color:#81ecec;}
+  .fvsbn-node.n4{background:rgba(253,121,168,.25);border:2px solid #fd79a8;color:#fd79a8;}
+  .fvsbn-sigma { font-size: .68rem; color: var(--muted); text-align:center; line-height:1.3; }
+  .fvsbn-params {
+    font-size: .7rem; color: var(--muted); text-align: center;
+    background: rgba(255,255,255,.05); border-radius: 5px; padding: 3px 7px;
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .fvsbn-arrow { font-size: 1.3rem; color: rgba(255,255,255,.2); align-self: center; padding-bottom: 30px; flex-shrink:0; }
+  /* ---- NADE VS-GRID ---- */
+  .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+  .vs-box {
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px; padding: 16px; text-align: center;
+  }
+  .vs-box h4 { font-size: .88rem; margin-bottom: 10px; }
+  .vs-box.fvsbn-vs h4 { color: var(--fvsbn); }
+  .vs-box.nade-vs h4  { color: var(--nade); }
+  .weight-row { display: flex; gap: 4px; justify-content: center; margin: 5px 0; flex-wrap: wrap; }
+  .w-chip { padding: 3px 8px; border-radius: 4px; font-size: .7rem; font-weight: 700; }
+  .w-unique { background: rgba(162,155,254,.2); color: #a29bfe; border: 1px solid rgba(162,155,254,.3); }
+  .w-shared { background: rgba(0,210,211,.18); color: #00d2d3; border: 1px solid rgba(0,210,211,.3); }
+  .w-out    { background: rgba(245,166,35,.18); color: #f5a623; border: 1px solid rgba(245,166,35,.3); font-size:.68rem; }
+  /* ---- SOFTMAX DEMO ---- */
+  .softmax-demo { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+  .softmax-input, .softmax-output { flex: 1; min-width: 180px; }
+  .softmax-bar-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .softmax-bar-label { font-size: .75rem; min-width: 86px; color: var(--text); flex-shrink:0; }
+  .softmax-bar-track { flex:1; background: rgba(255,255,255,.06); border-radius: 4px; height: 22px; overflow: hidden; }
+  .softmax-bar-fill { height: 100%; border-radius: 4px; display:flex; align-items:center; padding-left:5px; font-size:.7rem; font-weight:700; color:#000; min-width:2px; }
+  .softmax-arrow-big { font-size: 2rem; color: var(--primary); flex-shrink: 0; text-align:center; line-height:1.2; }
+  @media(max-width:900px){
+    .sidebar{display:none;}
+    .main{padding:24px 20px;}
+    .pc-grid{grid-template-columns:1fr;}
+    .vs-grid{grid-template-columns:1fr;}
+    .hero h1{font-size:1.8rem;}
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>🤖 Autoregressive Models</h1>
+  <p>Day 5 — Deep Unsupervised Learning · KAUST Academy · May 2025<br>
+  <em>An interactive, comprehensive study guide — your one-stop replacement for the original slides!</em></p>
+  <div class="badge-row">
+    <span class="badge">📊 Chain Rule Factorization</span>
+    <span class="badge">🧠 FVSBN · NADE · RNADE</span>
+    <span class="badge">🎨 PixelRNN · PixelCNN</span>
+    <span class="badge">🎵 WaveNet</span>
+    <span class="badge">🚀 Transformers</span>
+    <span class="badge">🧪 Quiz + Flashcards</span>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <h3>Sections</h3>
+  <a class="nav-item" onclick="scrollTo('motivation')"><span class="nav-emoji">🎯</span>Motivation</a>
+  <a class="nav-item" onclick="scrollTo('fundamentals')"><span class="nav-emoji">📐</span>Fundamentals</a>
+  <a class="nav-item" onclick="scrollTo('implementations')"><span class="nav-emoji">⚙️</span>Implementations</a>
+  <a class="nav-item" onclick="scrollTo('learning')"><span class="nav-emoji">📉</span>Learning & MLE</a>
+  <h3>Historical Models</h3>
+  <a class="nav-item" onclick="scrollTo('fvsbn')"><span class="nav-emoji">🔵</span>FVSBN</a>
+  <a class="nav-item" onclick="scrollTo('nade')"><span class="nav-emoji">🟢</span>NADE</a>
+  <a class="nav-item" onclick="scrollTo('nonbinary')"><span class="nav-emoji">🔢</span>Non-Binary Outputs</a>
+  <a class="nav-item" onclick="scrollTo('rnade')"><span class="nav-emoji">🌊</span>RNADE</a>
+  <a class="nav-item" onclick="scrollTo('rnn')"><span class="nav-emoji">🔄</span>RNNs</a>
+  <h3>Modern Models</h3>
+  <a class="nav-item" onclick="scrollTo('pixelrnn')"><span class="nav-emoji">🖼️</span>PixelRNN</a>
+  <a class="nav-item" onclick="scrollTo('pixelcnn')"><span class="nav-emoji">🎨</span>PixelCNN</a>
+  <a class="nav-item" onclick="scrollTo('wavenet')"><span class="nav-emoji">🎵</span>WaveNet</a>
+  <a class="nav-item" onclick="scrollTo('transformers')"><span class="nav-emoji">⚡</span>Transformers</a>
+  <h3>Review</h3>
+  <a class="nav-item" onclick="scrollTo('comparison')"><span class="nav-emoji">📊</span>Model Comparison</a>
+  <a class="nav-item" onclick="scrollTo('summary')"><span class="nav-emoji">📝</span>Summary</a>
+  <a class="nav-item" onclick="scrollTo('flashcards')"><span class="nav-emoji">🃏</span>Flashcards</a>
+  <a class="nav-item" onclick="scrollTo('quiz')"><span class="nav-emoji">🧪</span>Quiz</a>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ===================== MOTIVATION ===================== -->
+<section class="section" id="motivation">
+  <div class="section-title"><span class="icon">🎯</span>Motivation — Why Do We Need This?</div>
+  <div class="section-subtitle">The curse of dimensionality and the goal of generative modeling</div>
+
+  <div class="keypoint">
+    <span class="kp-icon">💡</span>
+    <p><strong>Core Problem:</strong> We want to <em>estimate distributions of complex, high-dimensional data</em>. A single 128×128 RGB image has <span class="highlight">128 × 128 × 3 = 49,152 dimensions</span>. Directly modeling such a space is practically impossible!</p>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h4>Computational Efficiency</h4>
+      <p>Fast training convergence, reasonable resource usage, compact model size.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📊</div>
+      <h4>Statistical Efficiency</h4>
+      <p>Expressiveness to capture complex relationships + generalization to unseen data.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <h4>Performance</h4>
+      <p>High quality sampling & speed. Good compression rate and speed.</p>
+    </div>
+  </div>
+
+  <h3>Applications of Autoregressive Models</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">✍️</div>
+      <h4>Text Generation</h4>
+      <p>Large Language Models (GPT), RNNs — generate realistic text word by word.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🖼️</div>
+      <h4>Image Generation</h4>
+      <p>PixelCNN, PixelRNN — synthesize realistic images pixel by pixel.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎵</div>
+      <h4>Audio Synthesis</h4>
+      <p>WaveNet — generate natural-sounding speech and music sample by sample.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔍</div>
+      <h4>Anomaly Detection</h4>
+      <p>Identify data that deviates from the learned distribution.</p>
+    </div>
+  </div>
+
+  <div class="note-box">
+    <strong>💡 MNIST Example:</strong> Each digit is a 784-dimensional binary vector.
+    Total possible states = 2<sup>784</sup> ≈ 10<sup>236</sup>. Even with 10<sup>7</sup> training examples,
+    coverage is <em>extremely sparse</em>! We need smart models, not brute-force tables.
+  </div>
+</section>
+
+<!-- ===================== FUNDAMENTALS ===================== -->
+<section class="section" id="fundamentals">
+  <div class="section-title"><span class="icon">📐</span>Fundamentals — The Core Idea</div>
+  <div class="section-subtitle">How autoregressive models work: chain rule factorization</div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🔑</span>
+    <p><strong>Core Idea:</strong> Factorize the joint distribution using the <strong>chain rule of probability</strong>, expressing it as a product of conditional probabilities.</p>
+  </div>
+
+  <div class="formula-box">
+    <div class="formula-label">The Autoregressive Factorization (Chain Rule)</div>
+    \[ p(x_1, x_2, \ldots, x_n) = \prod_{i=1}^{n} p(x_i \mid x_1, x_2, \ldots, x_{i-1}) = \prod_{i=1}^{n} p(x_i \mid x_{&lt;i}) \]
+  </div>
+
+  <p>This allows us to model complex data <strong>one element (or "token") at a time</strong>, conditioned on previously generated elements.</p>
+
+  <h3>🎮 Interactive: See the Chain Rule in Action</h3>
+  <p style="color:var(--muted); font-size:.88rem;">Hover over each conditional — they multiply together to give you the full joint probability!</p>
+  <div class="chain-demo" id="chain-demo-area">
+    <span class="chain-eq">p(x) =</span>
+    <span class="chain-token" style="animation-delay:.05s" title="Probability of x₁ (no conditioning)">p(x₁)</span>
+    <span class="chain-times">×</span>
+    <span class="chain-token" style="animation-delay:.2s" title="x₂ given x₁">p(x₂|x₁)</span>
+    <span class="chain-times">×</span>
+    <span class="chain-token" style="animation-delay:.35s" title="x₃ given x₁,x₂">p(x₃|x₁,x₂)</span>
+    <span class="chain-times">×</span>
+    <span class="chain-token" style="animation-delay:.5s" title="x₄ given all previous">p(x₄|x₁,x₂,x₃)</span>
+    <span class="chain-times">× … ×</span>
+    <span class="chain-token" style="animation-delay:.65s" title="xₙ given all previous">p(xₙ|x₁,…,xₙ₋₁)</span>
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🔎</span>
+    <p>Notice how each term conditions on <em>everything that came before it</em>. This is why it's called <strong>autoregressive</strong> — the model regresses on its own previous outputs.</p>
+  </div>
+
+  <h3>Why does this solve the curse of dimensionality?</h3>
+  <p>Instead of estimating a single massive joint distribution over all 49,152 pixel values simultaneously, we break it down into <em>many smaller, manageable conditional distributions</em>. Each conditional just needs to model one variable given the previous ones.</p>
+</section>
+
+<!-- ===================== IMPLEMENTATIONS ===================== -->
+<section class="section" id="implementations">
+  <div class="section-title"><span class="icon">⚙️</span>Practical Implementations & Design Choices</div>
+  <div class="section-subtitle">Key architectural families and engineering considerations</div>
+
+  <h3>Architectural Families</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🕸️</div>
+      <h4>Bayesian Networks</h4>
+      <p>Graphical models encoding conditional dependencies. Classic statistical approach.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔄</div>
+      <h4>RNNs / LSTMs</h4>
+      <p>Naturally suited for sequential data. Keep a hidden state summary updated recursively.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎭</div>
+      <h4>MADE (Masked Autoencoder)</h4>
+      <p>Feedforward network with masks to enforce the autoregressive property efficiently.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏗️</div>
+      <h4>Causal Conv Nets</h4>
+      <p>PixelCNN, WaveNet — use masked convolutions so future elements can't influence current ones.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔭</div>
+      <h4>Attention-based</h4>
+      <p>Transformers with causal masks — enable flexible context modeling with global dependencies.</p>
+    </div>
+  </div>
+
+  <h3>Design Considerations</h3>
+
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      🔤 Tokenization <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p>Discretizing continuous data to form sequences. Examples:</p>
+      <ul>
+        <li><strong>Images:</strong> split into patches, or model pixel-by-pixel (0–255 as 256 categories)</li>
+        <li><strong>Audio:</strong> discretize waveform samples (e.g., 256 levels with μ-law encoding)</li>
+        <li><strong>Text:</strong> naturally discrete — words, subwords, or bytes</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      💾 Caching (KV Cache) <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>Essential for efficient inference.</strong> During generation, previously computed hidden states/keys/values are cached so we don't re-compute them for every new token. Without caching, each new generated element would require re-processing all previous elements — O(n²) cost instead of O(n).</p>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      🏛️ Decoder-only vs Encoder-Decoder <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p><strong>Decoder-only</strong> (e.g., GPT): Great for pure generation — each token attends only to past tokens via causal masking.</p>
+      <p><strong>Encoder-Decoder</strong> (e.g., T5): Better for conditioning on an input (translation, summarization). Encoder processes full input bidirectionally; decoder generates autoregressively.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== LEARNING ===================== -->
+<section class="section" id="learning">
+  <div class="section-title"><span class="icon">📉</span>Learning Autoregressive Models</div>
+  <div class="section-subtitle">KL Divergence, Expected Log-Likelihood, and Maximum Likelihood Estimation</div>
+
+  <p>The goal of learning: return a model <strong>M̂</strong> that precisely captures the data distribution P<sub>data</sub>.</p>
+
+  <div class="keypoint">
+    <span class="kp-icon">⚠️</span>
+    <p>This is <em>not</em> exactly achievable because: (1) we only have limited data — a rough approximation, (2) computational constraints. For MNIST, 2<sup>784</sup> ≈ 10<sup>236</sup> possible images, but we have ~10<sup>7</sup> examples — extremely sparse coverage!</p>
+  </div>
+
+  <h3>KL Divergence — Measuring Closeness</h3>
+  <div class="formula-box">
+    <div class="formula-label">Kullback-Leibler Divergence</div>
+    \[ D(P_{data} \| P_\theta) = \mathbb{E}_{x \sim P_{data}} \left[ \log \frac{P_{data}(x)}{P_\theta(x)} \right] = \sum_x P_{data}(x) \log \frac{P_{data}(x)}{P_\theta(x)} \]
+  </div>
+
+  <ul>
+    <li><strong>D = 0</strong> iff the two distributions are identical</li>
+    <li>Measures the "compression loss" (in bits) of using P<sub>θ</sub> instead of P<sub>data</sub></li>
+    <li>Note: KL divergence is <em>not symmetric</em> — D(P‖Q) ≠ D(Q‖P)</li>
+  </ul>
+
+  <h3>From KL to Log-Likelihood</h3>
+  <div class="formula-box">
+    <div class="formula-label">KL Divergence Decomposition</div>
+    \[ D(P_{data} \| P_\theta) = \underbrace{\mathbb{E}_{x \sim P_{data}}[\log P_{data}(x)]}_{\text{constant w.r.t. } \theta} - \mathbb{E}_{x \sim P_{data}}[\log P_\theta(x)] \]
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">💡</span>
+    <p>The first term doesn't depend on θ! So <strong>minimizing KL divergence ≡ maximizing the expected log-likelihood</strong>:</p>
+  </div>
+  <div class="formula-box">
+    <div class="formula-label">Equivalence</div>
+    \[ \arg\min_{P_\theta} D(P_{data} \| P_\theta) = \arg\max_{P_\theta} \mathbb{E}_{x \sim P_{data}}[\log P_\theta(x)] \]
+  </div>
+
+  <h3>Maximum Likelihood Estimation (MLE)</h3>
+  <p>Since we don't know P<sub>data</sub>, we approximate the expected log-likelihood with the <strong>empirical log-likelihood</strong> over our dataset D:</p>
+  <div class="formula-box">
+    <div class="formula-label">MLE Objective</div>
+    \[ \arg\max_{P_\theta} \frac{1}{|D|} \sum_{x \in D} \log P_\theta(x) \]
+  </div>
+  <div class="note-box">
+    <strong>⚠️ Caveat:</strong> Because we ignore H(P<sub>data</sub>), we don't know how close we are to the true optimum. Also, P<sub>data</sub> is unknown in general — we only have samples from it. In practice, because of the log, samples where P<sub>θ</sub>(x) ≈ 0 contribute heavily to the loss, pushing the model to assign non-zero probability everywhere.
+  </div>
+</section>
+
+<!-- ===================== FVSBN ===================== -->
+<section class="section accent-fvsbn" id="fvsbn">
+  <div class="section-title"><span class="icon">🔵</span>FVSBN — Fully Visible Sigmoid Belief Network</div>
+  <div class="section-subtitle">Bengio &amp; Bengio (2000) — The pioneering neural autoregressive model</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <span class="model-tag" style="background:rgba(162,155,254,.2);color:var(--fvsbn);border:1px solid rgba(162,155,254,.3);">Year: 2000</span>
+    <span class="model-tag" style="background:rgba(162,155,254,.2);color:var(--fvsbn);border:1px solid rgba(162,155,254,.3);">Binary Data</span>
+    <span class="model-tag" style="background:rgba(162,155,254,.2);color:var(--fvsbn);border:1px solid rgba(162,155,254,.3);">Sigmoid Units</span>
+    <span class="model-tag" style="background:rgba(162,155,254,.2);color:var(--fvsbn);border:1px solid rgba(162,155,254,.3);">No Latent Variables</span>
+  </div>
+
+  <h3>What Does the Name Mean?</h3>
+  <p><strong>"Fully Visible"</strong> = every variable in the model is directly observed — no hidden or latent variables. <strong>"Sigmoid Belief Network"</strong> = each conditional probability is computed by a sigmoid (logistic) function applied to a linear combination of the previous variables. Think of it as running a tiny logistic regression at every single pixel, using all prior pixels as features.</p>
+
+  <h3>📊 Network Structure — 4 Variables</h3>
+  <p>For n=4 variables, here is what FVSBN looks like. Notice how each node has its own <em>unique set of weights</em>, and the number of weights grows with each variable:</p>
+
+  <div class="fvsbn-diagram">
+    <div class="fvsbn-var">
+      <div class="fvsbn-node n1">x₁</div>
+      <div class="fvsbn-sigma">P(x₁=1) = σ(α₀¹)</div>
+      <div class="fvsbn-params">1 parameter</div>
+    </div>
+    <div class="fvsbn-arrow">→</div>
+    <div class="fvsbn-var">
+      <div class="fvsbn-node n2">x₂</div>
+      <div class="fvsbn-sigma">P(x₂=1|x₁) = σ(α₀²+α₁²x₁)</div>
+      <div class="fvsbn-params">2 parameters</div>
+    </div>
+    <div class="fvsbn-arrow">→</div>
+    <div class="fvsbn-var">
+      <div class="fvsbn-node n3">x₃</div>
+      <div class="fvsbn-sigma">P(x₃=1|x₁,x₂) = σ(α₀³+α₁³x₁+α₂³x₂)</div>
+      <div class="fvsbn-params">3 parameters</div>
+    </div>
+    <div class="fvsbn-arrow">→</div>
+    <div class="fvsbn-var">
+      <div class="fvsbn-node n4">x₄</div>
+      <div class="fvsbn-sigma">P(x₄=1|x₁,x₂,x₃) = σ(α₀⁴+α₁⁴x₁+α₂⁴x₂+α₃⁴x₃)</div>
+      <div class="fvsbn-params">4 parameters</div>
+    </div>
+  </div>
+
+  <div class="note-box">
+    <strong>💡 Key insight:</strong> Variable xᵢ has exactly <em>i parameters</em> (α₀ⁱ, α₁ⁱ, …, αᵢ₋₁ⁱ). Total = 1+2+3+…+n = n(n+1)/2. For MNIST (n=784): that's 307,580 parameters — and growing <em>quadratically</em> with image size. This is FVSBN's fatal weakness.
+  </div>
+
+  <h3>The Formula</h3>
+  <div class="formula-box">
+    <div class="formula-label">Joint Probability — Product of Conditionals</div>
+    \[ p(x_1, x_2, \ldots, x_n) = \prod_{i=1}^{n} p(x_i \mid x_1, \ldots, x_{i-1}) \]
+  </div>
+
+  <div class="formula-box">
+    <div class="formula-label">Each Conditional — Sigmoid Parameterization</div>
+    \[ p(x_i = 1 \mid x_1, \ldots, x_{i-1}) = \sigma\!\left(\alpha_0^i + \sum_{j=1}^{i-1} \alpha_j^i \, x_j \right) \]
+    <p style="font-size:.85rem;color:var(--muted);margin-top:8px;">
+    Where: <strong>σ(z) = 1/(1+e<sup>−z</sup>)</strong> is the sigmoid function (squashes any number to [0,1]).
+    <strong>α₀ⁱ</strong> is the bias for variable xᵢ.
+    <strong>αⱼⁱ</strong> is the weight measuring how much xⱼ influences xᵢ.
+    Since data is binary, P(xᵢ = 0) = 1 − P(xᵢ = 1).
+    </p>
+  </div>
+
+  <h3>🔢 Worked Numerical Example (3 Pixels)</h3>
+  <p style="color:var(--muted);font-size:.9rem;">Let's trace through a tiny MNIST example: 3 binary pixels with true values (x₁=1, x₂=1, x₃=0). We want to evaluate how likely this image is under the model.</p>
+  <div class="example-box">
+    <div class="ex-title">📌 Learned weights for this example:</div>
+    <p style="font-size:.85rem;margin-bottom:12px;">α₀¹ = 0.5 &nbsp;&nbsp;|&nbsp;&nbsp; α₀² = 0.3, α₁² = 0.8 &nbsp;&nbsp;|&nbsp;&nbsp; α₀³ = −0.2, α₁³ = 0.6, α₂³ = 0.4</p>
+    <div class="step-trace">
+      <div class="st-row">
+        <span class="st-label">Step 1</span>
+        <span class="st-math">P(x₁=1) = σ(0.5) = 1/(1+e⁻⁰·⁵)</span>
+        <span class="st-result">= 0.622</span>
+      </div>
+      <div class="st-row s2">
+        <span class="st-label">Step 2</span>
+        <span class="st-math">P(x₂=1 | x₁=1) = σ(0.3 + 0.8×1) = σ(1.1)</span>
+        <span class="st-result">= 0.750</span>
+      </div>
+      <div class="st-row s3">
+        <span class="st-label">Step 3</span>
+        <span class="st-math">P(x₃=0 | x₁=1, x₂=1) = 1 − σ(−0.2 + 0.6×1 + 0.4×1) = 1 − σ(0.8)</span>
+        <span class="st-result">= 1 − 0.690 = 0.310</span>
+      </div>
+      <div class="st-row s4">
+        <span class="st-label">Joint P</span>
+        <span class="st-math">P(x₁=1, x₂=1, x₃=0) = 0.622 × 0.750 × 0.310</span>
+        <span class="st-result good">= 0.145</span>
+      </div>
+    </div>
+    <p style="font-size:.85rem;color:var(--muted);margin-top:10px;">📈 Training maximizes log(0.622) + log(0.750) + log(0.310) = −0.476 − 0.288 − 1.171 = <strong>−1.935</strong>. The optimizer pushes this value toward 0 by adjusting all α weights.</p>
+  </div>
+
+  <h3>How to Sample New Images</h3>
+  <ol>
+    <li>Compute x̂₁ = σ(α₀¹). Sample x₁ ∈ {0,1} with P(x₁=1) = x̂₁. In code: <code>x1 = np.random.choice([1,0], p=[x_hat1, 1-x_hat1])</code></li>
+    <li>Plug x₁ into x̂₂ = σ(α₀² + α₁²·x₁). Sample x₂.</li>
+    <li>Plug x₁, x₂ into x̂₃ = σ(α₀³ + α₁³·x₁ + α₂³·x₂). Sample x₃.</li>
+    <li>Continue until all n pixels are sampled — each depends on all previous ones.</li>
+  </ol>
+
+  <div class="pc-grid">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>Exact tractable likelihood — no approximations</li>
+        <li>Conceptually simple — logistic regression per variable</li>
+        <li>Historic — first neural AR density estimation model</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>O(n²) parameters — scales quadratically, unusable for large images</li>
+        <li>No weight sharing — xᵢ's weights tell us nothing about xⱼ's weights</li>
+        <li>Binary only — can't predict pixel values 0–255</li>
+        <li>Only logistic regression — not expressive enough for complex patterns</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NADE ===================== -->
+<section class="section accent-nade" id="nade">
+  <div class="section-title"><span class="icon">🟢</span>NADE — Neural Autoregressive Distribution Estimator</div>
+  <div class="section-subtitle">Larochelle & Murray (2011) — Scalable version via weight sharing</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <span class="model-tag" style="background:rgba(116,185,255,.2);color:var(--nade);border:1px solid rgba(116,185,255,.3);">Year: 2011</span>
+    <span class="model-tag" style="background:rgba(116,185,255,.2);color:var(--nade);border:1px solid rgba(116,185,255,.3);">Weight Sharing</span>
+    <span class="model-tag" style="background:rgba(116,185,255,.2);color:var(--nade);border:1px solid rgba(116,185,255,.3);">Masked Neural Net</span>
+    <span class="model-tag" style="background:rgba(116,185,255,.2);color:var(--nade);border:1px solid rgba(116,185,255,.3);">Binary Data</span>
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🚀</span>
+    <p><strong>Key Innovation:</strong> Replace FVSBN's independent weight vectors with a <em>single shared weight matrix W</em> reused across all conditionals — cuts parameters from O(n²) down to O(d·H) while adding a hidden layer for more expressive power.</p>
+  </div>
+
+  <!-- ── WHY weight sharing? ── -->
+  <h3>The Problem With FVSBN</h3>
+  <p>Recall that FVSBN needs a <em>different</em> set of weights for every variable. To predict x<sub>3</sub>, it uses weights <strong>w<sub>3</sub></strong>. To predict x<sub>100</sub>, it uses completely different weights <strong>w<sub>100</sub></strong>. For d=784 pixels each with their own weight vector, that's <strong>307,000+ parameters</strong> — and none of the network's "knowledge" transfers from predicting x<sub>3</sub> to predicting x<sub>100</sub>.</p>
+
+  <div class="vs-grid" style="margin:20px 0;">
+    <div class="vs-box fvsbn-vs">
+      <div style="font-weight:700; font-size:1.05rem; margin-bottom:10px; color:var(--fvsbn);">🔵 FVSBN — Unique Weights</div>
+      <p style="font-size:.88rem; margin-bottom:10px;">Every conditional has its <em>own</em> weight vector:</p>
+      <div class="weight-row">
+        <span class="w-chip w-unique">w₁ (for x₁)</span>
+      </div>
+      <div class="weight-row">
+        <span class="w-chip w-unique">w₂,₁ (for x₂)</span>
+        <span class="w-chip w-unique">w₂,₂</span>
+      </div>
+      <div class="weight-row">
+        <span class="w-chip w-unique">w₃,₁</span>
+        <span class="w-chip w-unique">w₃,₂</span>
+        <span class="w-chip w-unique">w₃,₃</span>
+      </div>
+      <div style="margin-top:10px; font-size:.82rem; color:var(--muted);">Each row = new weights. Zero sharing. O(n²) params.</div>
+    </div>
+    <div class="vs-box nade-vs">
+      <div style="font-weight:700; font-size:1.05rem; margin-bottom:10px; color:var(--nade);">🟢 NADE — Shared Matrix W</div>
+      <p style="font-size:.88rem; margin-bottom:10px;">One matrix W, use more columns each time:</p>
+      <div class="weight-row">
+        <span class="w-chip w-shared">W[:,0]</span>
+        <span class="w-out">→ h₁</span>
+      </div>
+      <div class="weight-row">
+        <span class="w-chip w-shared">W[:,0]</span>
+        <span class="w-chip w-shared">W[:,1]</span>
+        <span class="w-out">→ h₂</span>
+      </div>
+      <div class="weight-row">
+        <span class="w-chip w-shared">W[:,0]</span>
+        <span class="w-chip w-shared">W[:,1]</span>
+        <span class="w-chip w-shared">W[:,2]</span>
+        <span class="w-out">→ h₃</span>
+      </div>
+      <div style="margin-top:10px; font-size:.82rem; color:var(--muted);">Same columns reused. O(d·H) params. Generalizes better.</div>
+    </div>
+  </div>
+
+  <!-- ── Formulas ── -->
+  <h3>Architecture & Formulas</h3>
+  <p>NADE introduces a <strong>hidden layer h</strong> between input and output. Two steps per variable:</p>
+
+  <div class="formula-box">
+    <div class="formula-label">Step 1 — Hidden Representation</div>
+    \[ \mathbf{h}_i = \sigma\!\bigl(\mathbf{W}_{:,\,1:i-1}\; \mathbf{x}_{1:i-1} + \mathbf{c}\bigr) \]
+    <div style="margin-top:8px; font-size:.88rem; color:var(--muted);">
+      <strong>W</strong> is a shared (H × d) matrix — same matrix for all i, just use the first <em>i−1</em> columns.<br>
+      <strong>c</strong> is a shared bias vector (H-dimensional).<br>
+      <strong>h<sub>i</sub></strong> is an H-dimensional vector — the hidden state for variable i.
+    </div>
+  </div>
+
+  <div class="formula-box">
+    <div class="formula-label">Step 2 — Conditional Probability</div>
+    \[ p(x_i \mid x_{1:i-1}) = \sigma\!\bigl(\mathbf{\alpha}^{(i)} \cdot \mathbf{h}_i + b_i\bigr) \]
+    <div style="margin-top:8px; font-size:.88rem; color:var(--muted);">
+      <strong>α<sup>(i)</sup></strong> is an output weight vector specific to variable i (H-dimensional).<br>
+      <strong>b<sub>i</sub></strong> is an output bias for variable i.<br>
+      These are the <em>only</em> per-variable parameters — much fewer than FVSBN.
+    </div>
+  </div>
+
+  <!-- ── Worked Example ── -->
+  <div class="example-box">
+    <div class="ex-title">🔢 Worked Example — 3 pixels, H=2 hidden units</div>
+    <p>Suppose <strong>d=3 pixels, H=2 hidden units</strong>. The shared weight matrix <strong>W</strong> is 2×3:</p>
+    <div class="formula-box" style="margin:10px 0;">
+      \[ W = \begin{bmatrix} 0.5 & -0.3 & 0.8 \\ 1.0 & 0.6 & -0.4 \end{bmatrix}, \quad c = \begin{bmatrix} 0.1 \\ -0.2 \end{bmatrix} \]
+    </div>
+    <p>Observed pixels: <strong>x₁ = 1, x₂ = 0</strong>. Want to compute h₃ (for predicting x₃):</p>
+    <div class="step-trace">
+      <div class="st-row">
+        <span class="st-label">Use columns 1 &amp; 2 of W:</span>
+        <span class="st-math">\[ W_{:,1:2} = \begin{bmatrix}0.5 & -0.3 \\ 1.0 & 0.6\end{bmatrix} \]</span>
+      </div>
+      <div class="st-row s2">
+        <span class="st-label">Linear combination:</span>
+        <span class="st-math">\[ W_{:,1:2}\,\mathbf{x}_{1:2} + c = \begin{bmatrix}0.5(1)+(-0.3)(0)+0.1 \\ 1.0(1)+0.6(0)+(-0.2)\end{bmatrix} = \begin{bmatrix}0.6 \\ 0.8\end{bmatrix} \]</span>
+      </div>
+      <div class="st-row s3">
+        <span class="st-label">Apply σ:</span>
+        <span class="st-math">\[ \mathbf{h}_3 = \sigma\!\left(\begin{bmatrix}0.6 \\ 0.8\end{bmatrix}\right) = \begin{bmatrix}0.646 \\ 0.690\end{bmatrix} \]</span>
+      </div>
+      <div class="st-row s4">
+        <span class="st-label">With α⁽³⁾=[1.2, −0.5], b₃=0.3:</span>
+        <span class="st-math">\( p(x_3{=}1 \mid x_1{=}1, x_2{=}0) = \sigma(1.2(0.646) + (-0.5)(0.690) + 0.3) \)</span>
+      </div>
+      <div class="st-result good">
+        <span>\( = \sigma(0.775 - 0.345 + 0.300) = \sigma(0.730) \approx \mathbf{0.675} \)</span>
+      </div>
+    </div>
+    <p style="margin-top:10px; font-size:.9rem;">Notice: if we also needed <strong>h₂</strong>, we'd reuse the <em>same</em> W — just the first column <strong>W[:,1]</strong>. That's weight sharing in action.</p>
+  </div>
+
+  <!-- ── Parameter Count ── -->
+  <h3>Parameter Efficiency</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🔵</div>
+      <h4>FVSBN (d=784)</h4>
+      <p>Parameters ≈ <strong>d²/2 ≈ 307,000</strong><br>Each variable has its own weight vector.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🟢</div>
+      <h4>NADE (d=784, H=500)</h4>
+      <p>Parameters ≈ <strong>d×H = 392,000</strong> — comparable but with a hidden layer giving far more expressiveness!</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h4>Training Speed</h4>
+      <p>Computing all h<sub>i</sub> sequentially shares intermediate results → O(dH) forward pass instead of O(d²).</p>
+    </div>
+  </div>
+
+  <div class="pc-grid" style="margin-top:16px;">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>Tractable and scalable over FVSBN</li>
+        <li>Weight sharing enables efficient gradient computation</li>
+        <li>Hidden layer → more expressive conditionals</li>
+        <li>Inspired MADE, normalizing flows, and more</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>Still binary only (σ output) — see RNADE for continuous fix</li>
+        <li>Sequential evaluation: can't parallelize over variables</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NON-BINARY ===================== -->
+<section class="section" id="nonbinary">
+  <div class="section-title"><span class="icon">🔢</span>Non-Binary Outputs — Going Beyond 0/1</div>
+  <div class="section-subtitle">Categorical distributions for discrete pixel values (0–255)</div>
+
+  <div class="keypoint">
+    <span class="kp-icon">❓</span>
+    <p><strong>Problem:</strong> FVSBN and NADE both produce a <em>single</em> probability: P(xᵢ = 1). That's fine for black-or-white pixels. But real images have pixel values from <strong>0 to 255</strong> — 256 possible levels. Sigmoid can't do that. We need a new output head.</p>
+  </div>
+
+  <!-- Three regimes -->
+  <h3>Three Output Regimes</h3>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin:16px 0;">
+    <div class="card" style="border-top:3px solid var(--fvsbn);">
+      <div class="card-icon">⚫⚪</div>
+      <h4 style="color:var(--fvsbn);">Binary (K = 2)</h4>
+      <p>Pixel is black or white.<br>Output: single probability p ∈ [0,1].<br>Use: <strong>Sigmoid</strong></p>
+      <div style="margin-top:8px; font-size:.82rem; background:rgba(162,155,254,.1); border-radius:6px; padding:6px;">P(x=1) = σ(z)</div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--nade);">
+      <div class="card-icon">🎨</div>
+      <h4 style="color:var(--nade);">Discrete (K = 256)</h4>
+      <p>Pixel is one of 256 intensities.<br>Output: 256 probabilities summing to 1.<br>Use: <strong>Softmax</strong></p>
+      <div style="margin-top:8px; font-size:.82rem; background:rgba(116,185,255,.1); border-radius:6px; padding:6px;">(p₀, p₁, …, p₂₅₅) = softmax(Az + b)</div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--rnade);">
+      <div class="card-icon">〰️</div>
+      <h4 style="color:var(--rnade);">Continuous (K = ∞)</h4>
+      <p>Pixel is a real number.<br>Output: parameters of a distribution.<br>Use: <strong>Gaussian / GMM</strong></p>
+      <div style="margin-top:8px; font-size:.82rem; background:rgba(129,236,236,.1); border-radius:6px; padding:6px;">p(x) = N(μ, σ²) → see RNADE</div>
+    </div>
+  </div>
+
+  <!-- Softmax explained -->
+  <h3>How Softmax Works</h3>
+  <p>Softmax takes a vector of <strong>raw scores (logits)</strong> and converts them into probabilities. The formula:</p>
+
+  <div class="formula-box">
+    <div class="formula-label">Softmax Formula</div>
+    \[ \text{softmax}(z_k) = \frac{e^{z_k}}{\displaystyle\sum_{j=1}^{K} e^{z_j}} \]
+    <div style="margin-top:8px; font-size:.88rem; color:var(--muted);">
+      Each raw score z<sub>k</sub> gets exponentiated (always positive), then normalized so all probabilities sum to 1.<br>
+      <strong>Key property:</strong> higher z<sub>k</sub> → higher P(x=k). It's a differentiable "argmax".
+    </div>
+  </div>
+
+  <!-- Softmax visual demo -->
+  <div class="example-box">
+    <div class="ex-title">🎯 Visual: Raw Scores → Probabilities (K=4 pixel values)</div>
+    <p style="margin-bottom:12px;">Imagine NADE outputs 4 logits for pixel values {dark, medium-dark, medium-light, light}:</p>
+
+    <div class="softmax-demo">
+      <div class="softmax-input">
+        <div style="font-size:.85rem; color:var(--muted); margin-bottom:8px; text-align:center;">Raw Logits z</div>
+        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+          <div style="text-align:center;"><div style="background:rgba(108,99,255,.3); border-radius:6px; padding:8px 12px; font-weight:700;">2.0</div><div style="font-size:.75rem; color:var(--muted); margin-top:4px;">dark</div></div>
+          <div style="text-align:center;"><div style="background:rgba(108,99,255,.2); border-radius:6px; padding:8px 12px; font-weight:700;">1.0</div><div style="font-size:.75rem; color:var(--muted); margin-top:4px;">med-dark</div></div>
+          <div style="text-align:center;"><div style="background:rgba(108,99,255,.15); border-radius:6px; padding:8px 12px; font-weight:700;">0.5</div><div style="font-size:.75rem; color:var(--muted); margin-top:4px;">med-light</div></div>
+          <div style="text-align:center;"><div style="background:rgba(108,99,255,.05); border-radius:6px; padding:8px 12px; font-weight:700;">−0.5</div><div style="font-size:.75rem; color:var(--muted); margin-top:4px;">light</div></div>
+        </div>
+      </div>
+
+      <div class="softmax-arrow-big">softmax ↓</div>
+
+      <div class="softmax-output">
+        <div style="font-size:.85rem; color:var(--muted); margin-bottom:8px; text-align:center;">Probabilities P(x = value)</div>
+        <div class="softmax-bar-row">
+          <span class="softmax-bar-label">dark (0)</span>
+          <div class="softmax-bar-track"><div class="softmax-bar-fill" style="width:59.8%; background:var(--primary);"></div></div>
+          <span style="font-size:.82rem; color:var(--text); min-width:48px;">59.8%</span>
+        </div>
+        <div class="softmax-bar-row">
+          <span class="softmax-bar-label">med-dark</span>
+          <div class="softmax-bar-track"><div class="softmax-bar-fill" style="width:22%; background:var(--nade);"></div></div>
+          <span style="font-size:.82rem; color:var(--text); min-width:48px;">22.0%</span>
+        </div>
+        <div class="softmax-bar-row">
+          <span class="softmax-bar-label">med-light</span>
+          <div class="softmax-bar-track"><div class="softmax-bar-fill" style="width:13.3%; background:var(--accent);"></div></div>
+          <span style="font-size:.82rem; color:var(--text); min-width:48px;">13.3%</span>
+        </div>
+        <div class="softmax-bar-row">
+          <span class="softmax-bar-label">light (255)</span>
+          <div class="softmax-bar-track"><div class="softmax-bar-fill" style="width:4.9%; background:var(--muted);"></div></div>
+          <span style="font-size:.82rem; color:var(--text); min-width:48px;">4.9%</span>
+        </div>
+        <div style="font-size:.78rem; color:var(--muted); margin-top:6px; text-align:right;">Sum = 100% ✓</div>
+      </div>
+    </div>
+    <div class="step-trace" style="margin-top:14px;">
+      <div class="st-row"><span class="st-label">e^z values:</span><span class="st-math">\( e^{2.0}=7.39,\quad e^{1.0}=2.72,\quad e^{0.5}=1.65,\quad e^{-0.5}=0.61 \)</span></div>
+      <div class="st-row s2"><span class="st-label">Sum:</span><span class="st-math">\( 7.39+2.72+1.65+0.61 = 12.37 \)</span></div>
+      <div class="st-row s3"><span class="st-label">Probabilities:</span><span class="st-math">\( \tfrac{7.39}{12.37}=0.598,\quad \tfrac{2.72}{12.37}=0.220,\quad \tfrac{1.65}{12.37}=0.133,\quad \tfrac{0.61}{12.37}=0.049 \)</span></div>
+      <div class="st-result good"><span>Sum = 0.598 + 0.220 + 0.133 + 0.049 = 1.000 ✓</span></div>
+    </div>
+  </div>
+
+  <!-- Full NADE formula for K classes -->
+  <h3>Full NADE for K Classes</h3>
+  <div class="formula-box">
+    <div class="formula-label">Hidden Layer (unchanged from binary NADE)</div>
+    \[ \mathbf{h}_i = \sigma\!\bigl(\mathbf{W}_{:,\,1:i-1}\;\mathbf{x}_{1:i-1} + \mathbf{c}\bigr) \]
+  </div>
+  <div class="formula-box">
+    <div class="formula-label">Categorical Output — K classes (K=256 for pixels)</div>
+    \[ P(x_i = k \mid x_{1:i-1}) = \frac{\exp\!\bigl((\mathbf{A}_i\,\mathbf{h}_i + \mathbf{b}_i)_k\bigr)}{\displaystyle\sum_{j=1}^{K}\exp\!\bigl((\mathbf{A}_i\,\mathbf{h}_i + \mathbf{b}_i)_j\bigr)} \]
+    <div style="margin-top:8px; font-size:.88rem; color:var(--muted);">
+      <strong>A<sub>i</sub></strong> is a K×H output matrix (projects h<sub>i</sub> to K class scores).<br>
+      <strong>b<sub>i</sub></strong> is a K-dimensional bias vector.<br>
+      For binary (K=2), this simplifies back to a single sigmoid.
+    </div>
+  </div>
+
+  <h3>Sigmoid vs Softmax — Quick Reference</h3>
+  <table class="cmp-table">
+    <tr><th>Property</th><th>Sigmoid (K=2)</th><th>Softmax (K classes)</th></tr>
+    <tr><td>Output</td><td>1 number in [0,1]</td><td>K numbers summing to 1</td></tr>
+    <tr><td>Interpretation</td><td>P(x=1)</td><td>P(x=0), P(x=1), …, P(x=K−1)</td></tr>
+    <tr><td>Use case</td><td>Binary pixels (NADE)</td><td>256-level pixels, text tokens</td></tr>
+    <tr><td>Special case</td><td>— </td><td>K=2 → reduces to sigmoid</td></tr>
+    <tr><td>Training loss</td><td>Binary cross-entropy</td><td>Categorical cross-entropy</td></tr>
+  </table>
+</section>
+
+<!-- ===================== RNADE ===================== -->
+<section class="section accent-rnade" id="rnade">
+  <div class="section-title"><span class="icon">🌊</span>RNADE — Real-valued NADE</div>
+  <div class="section-subtitle">Uria et al. (2013) — Continuous data via Mixture of Gaussians</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <span class="model-tag" style="background:rgba(129,236,236,.2);color:var(--rnade);border:1px solid rgba(129,236,236,.3);">Year: 2013</span>
+    <span class="model-tag" style="background:rgba(129,236,236,.2);color:var(--rnade);border:1px solid rgba(129,236,236,.3);">Continuous Data</span>
+    <span class="model-tag" style="background:rgba(129,236,236,.2);color:var(--rnade);border:1px solid rgba(129,236,236,.3);">Mixture of Gaussians</span>
+  </div>
+
+  <!-- The Problem -->
+  <div class="keypoint">
+    <span class="kp-icon">🔬</span>
+    <p><strong>Problem:</strong> Audio samples, pixel intensities, and sensor readings are <em>continuous real numbers</em> — not binary 0/1 or discrete 0–255. Even for pixels: if you just round to 256 bins, you lose quality in gradients and smooth color transitions. RNADE extends NADE to handle x<sub>i</sub> ∈ ℝ directly.</p>
+  </div>
+
+  <!-- Why single Gaussian fails -->
+  <h3>Why Not Just Use a Single Gaussian?</h3>
+  <p>A single Gaussian can only model a <strong>bell-shaped, unimodal</strong> distribution. Real-world data is often <strong>multimodal</strong> — for example, the brightness of a sky pixel depends on whether it's day (bright cluster) or night (dark cluster). A single Gaussian would average them badly:</p>
+
+  <div style="text-align:center; margin:16px 0;">
+    <canvas id="gmm-canvas" width="560" height="200" style="max-width:100%; background:rgba(0,0,0,.3); border-radius:10px; border:1px solid rgba(129,236,236,.2);"></canvas>
+    <div style="font-size:.82rem; color:var(--muted); margin-top:6px;">Green = daytime Gaussian · Blue = nighttime Gaussian · Teal = mixture · Red dashed = single Gaussian attempt</div>
+  </div>
+
+  <!-- Mixture of Gaussians -->
+  <h3>The Fix: Mixture of Gaussians (GMM)</h3>
+  <p>Instead of one Gaussian, use <strong>K Gaussians</strong> and let the network predict which one to use (mixture weights π<sub>k</sub>) plus the parameters of each:</p>
+
+  <div class="formula-box">
+    <div class="formula-label">RNADE Conditional Density — K Gaussians</div>
+    \[ p(x_i \mid x_{1:i-1}) = \sum_{k=1}^{K} \pi_k \cdot \mathcal{N}\!\bigl(x_i;\;\mu_k,\;\sigma_k^2\bigr) \]
+    <div style="margin-top:10px; font-size:.88rem; color:var(--muted);">
+      All three sets of parameters are <em>functions of the context</em> x<sub>1:i−1</sub> via the shared NADE hidden layer:<br><br>
+      <strong>π<sub>k</sub></strong> — mixture weights: how much Gaussian k contributes. Constrained: π<sub>k</sub> ≥ 0, Σπ<sub>k</sub>=1 (use softmax).<br>
+      <strong>μ<sub>k</sub></strong> — mean of Gaussian k (center of the bell curve).<br>
+      <strong>σ<sub>k</sub>²</strong> — variance of Gaussian k (how wide the bell is). Must be positive (use exp or softplus).
+    </div>
+  </div>
+
+  <!-- How NADE hidden layer produces GMM params -->
+  <h3>How the Architecture Works</h3>
+  <p>Same NADE hidden layer, but now the output head produces 3K numbers instead of 1:</p>
+
+  <div class="formula-box">
+    <div class="formula-label">Step 1 — Hidden Layer (shared, same as NADE)</div>
+    \[ \mathbf{h}_i = \sigma\!\bigl(\mathbf{W}_{:,1:i-1}\;\mathbf{x}_{1:i-1} + \mathbf{c}\bigr) \]
+  </div>
+  <div class="formula-box">
+    <div class="formula-label">Step 2 — Output Head produces GMM parameters</div>
+    \[ (\boldsymbol{\pi}_i,\;\boldsymbol{\mu}_i,\;\boldsymbol{\sigma}_i) = \text{OutputNet}(\mathbf{h}_i) \]
+    <div style="margin-top:8px; font-size:.88rem; color:var(--muted);">
+      OutputNet is a linear layer followed by: softmax for π, identity for μ, softplus/exp for σ.
+    </div>
+  </div>
+  <div class="formula-box">
+    <div class="formula-label">Full Joint Distribution</div>
+    \[ p(\mathbf{x}) = \prod_{i=1}^{d} \sum_{k=1}^{K} \pi_k(\mathbf{x}_{1:i-1})\;\mathcal{N}\!\bigl(x_i;\;\mu_k(\mathbf{x}_{1:i-1}),\;\sigma_k^2(\mathbf{x}_{1:i-1})\bigr) \]
+  </div>
+
+  <!-- Worked Example -->
+  <div class="example-box">
+    <div class="ex-title">🔢 Worked Example — Audio Sample (K=2 Gaussians)</div>
+    <p>Suppose the NADE hidden layer outputs parameters for <strong>K=2 mixture components</strong> for the next audio amplitude x<sub>i</sub>:</p>
+    <div class="step-trace">
+      <div class="st-row">
+        <span class="st-label">Component 1 (soft sound):</span>
+        <span class="st-math">\( \pi_1 = 0.7,\quad \mu_1 = 0.1,\quad \sigma_1 = 0.05 \)</span>
+      </div>
+      <div class="st-row s2">
+        <span class="st-label">Component 2 (loud burst):</span>
+        <span class="st-math">\( \pi_2 = 0.3,\quad \mu_2 = 0.8,\quad \sigma_2 = 0.15 \)</span>
+      </div>
+      <div class="st-row s3">
+        <span class="st-label">Query: p(x<sub>i</sub> = 0.1)?</span>
+        <span class="st-math">\( p = 0.7 \cdot \mathcal{N}(0.1;\,0.1,\,0.05^2) + 0.3 \cdot \mathcal{N}(0.1;\,0.8,\,0.15^2) \)</span>
+      </div>
+      <div class="st-row s4">
+        <span class="st-label">= 0.7 × (high peak near 0.1) + 0.3 × (tiny tail far from 0.8)</span>
+        <span class="st-math">\( \approx 0.7 \times 7.98 + 0.3 \times 0.0003 \approx 5.59 \)</span>
+      </div>
+      <div class="st-result good"><span>Most of the density is from component 1 (soft sound) — model correctly says "probably a quiet sample".</span></div>
+    </div>
+    <p style="margin-top:10px; font-size:.9rem;"><strong>At training time</strong>, the model is trained by maximizing log p(x<sub>i</sub>) summed over all training samples using gradient descent — exactly like NADE, just with a richer output distribution.</p>
+  </div>
+
+  <!-- Applications -->
+  <h3>Where RNADE Is Used</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🔊</div>
+      <h4>Audio / Speech</h4>
+      <p>Audio waveform samples are real-valued. GMM captures multimodal amplitude distributions (silence vs. voiced sounds).</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌡️</div>
+      <h4>Scientific Data</h4>
+      <p>Sensor readings, temperatures, financial returns — all continuous data where discretization wastes information.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔗</div>
+      <h4>Precursor to Flows</h4>
+      <p>RNADE directly inspired Masked Autoregressive Flows (MAF) and Inverse Autoregressive Flows (IAF) — key modern generative models.</p>
+    </div>
+  </div>
+
+  <div class="pc-grid" style="margin-top:16px;">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>Handles complex, multimodal continuous distributions</li>
+        <li>Directly models density (unlike GANs)</li>
+        <li>Influential precursor to normalizing flows</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>Need to pick K (number of Gaussians) as hyperparameter</li>
+        <li>Computationally heavier than discrete NADE</li>
+        <li>Sequential evaluation — slow for high-dimensional data</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== RNN ===================== -->
+<section class="section" id="rnn">
+  <div class="section-title"><span class="icon">🔄</span>Recurrent Neural Networks (RNNs)</div>
+  <div class="section-subtitle">Handling growing histories with a recursive hidden state</div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🤔</span>
+    <p><strong>Challenge:</strong> To model P(x<sub>t</sub> | x<sub>1:t-1</sub>), the "history" x<sub>1:t-1</sub> keeps getting longer and longer. You can't have a fixed-size input!</p>
+  </div>
+
+  <h3>The RNN Solution</h3>
+  <p><strong>Keep a summary (hidden state h<sub>t</sub>) and recursively update it:</strong></p>
+  <div class="formula-box">
+    <div class="formula-label">RNN Recurrence</div>
+    \[ h_t = f(h_{t-1}, x_t) \qquad \text{(update hidden state)} \]
+    \[ P(x_{t+1} \mid x_{1:t}) = g(h_t) \qquad \text{(predict next element)} \]
+  </div>
+
+  <p>The hidden state h<sub>t</sub> acts as a compressed representation of all previous inputs. The same functions f and g are applied at every step (weight sharing over time).</p>
+
+  <h3>RNN Use Cases</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">📸</div>
+      <h4>Image Captioning</h4>
+      <p>Many-to-one: CNN encodes image → RNN generates caption word by word.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">✍️</div>
+      <h4>Text Generation</h4>
+      <p>One-to-many or many-to-many: Generate a sequence of text tokens autoregressively.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🤖</div>
+      <h4>Chatbots</h4>
+      <p>Seq-to-seq with encoder-decoder RNN architecture for question-answer pairs.</p>
+    </div>
+  </div>
+
+  <div class="pc-grid">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>Works on sequences of arbitrary length</li>
+        <li>Very general: for every computable function, there exists a finite RNN that computes it (Turing complete)</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>Requires an ordering of elements</li>
+        <li>Sequential likelihood evaluation — very slow training</li>
+        <li>Sequential generation (unavoidable in AR models)</li>
+        <li>Vanishing/exploding gradients (mitigated by LSTM/GRU)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PIXELRNN ===================== -->
+<section class="section accent-pixel" id="pixelrnn">
+  <div class="section-title"><span class="icon">🖼️</span>PixelRNN — Pixel Recurrent Neural Network</div>
+  <div class="section-subtitle">van den Oord et al. (2016) — Generating images pixel by pixel</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <span class="model-tag" style="background:rgba(253,121,168,.2);color:var(--pixelrnn);border:1px solid rgba(253,121,168,.3);">DeepMind 2016</span>
+    <span class="model-tag" style="background:rgba(253,121,168,.2);color:var(--pixelrnn);border:1px solid rgba(253,121,168,.3);">Raster Scan Order</span>
+    <span class="model-tag" style="background:rgba(253,121,168,.2);color:var(--pixelrnn);border:1px solid rgba(253,121,168,.3);">LSTM</span>
+    <span class="model-tag" style="background:rgba(253,121,168,.2);color:var(--pixelrnn);border:1px solid rgba(253,121,168,.3);">Image Generation</span>
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🎯</span>
+    <p><strong>Core Idea:</strong> Model the joint distribution of all pixels by predicting <em>one pixel at a time</em> in <strong>raster-scan order</strong> (left-to-right, top-to-bottom — like reading text).</p>
+  </div>
+
+  <div class="formula-box">
+    <div class="formula-label">PixelRNN Factorization</div>
+    \[ p(x) = \prod_{i=1}^{n} p(x_i \mid x_1, x_2, \ldots, x_{i-1}) \]
+    For pixel at position (i,j):
+    \[ p(x_{i,j} \mid x_{\text{prev}}) \]
+    where \(x_{\text{prev}}\) = all pixels above row i, plus pixels in row i to the left of column j (raster-scan order).
+  </div>
+
+  <h3>🎮 Interactive Pixel Generation Demo</h3>
+  <p style="color:var(--muted);font-size:.88rem;">Watch how PixelRNN generates pixels one by one (purple = done, orange = current, dark = future):</p>
+  <div id="pixel-demo"></div>
+  <button id="pixel-demo-btn" onclick="animatePixels()">▶ Start Generation</button>
+
+  <h3>Architecture Details</h3>
+
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      1️⃣ Row LSTM <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p>Applies a <strong>1D LSTM row-by-row</strong>, left to right. To predict pixel (r, c), the LSTM has already processed all pixels in rows above <em>r</em>, plus all pixels in row <em>r</em> to the left of <em>c</em>.</p>
+
+      <!-- Row LSTM grid visual -->
+      <div style="margin:14px 0; overflow-x:auto;">
+        <div style="display:inline-grid; grid-template-columns:repeat(5,40px); gap:3px; font-size:.75rem; text-align:center;">
+          <!-- Row 0 - all done -->
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <!-- Row 1 - all done -->
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <!-- Row 2 - partial (done, done, current, future, future) -->
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#6c63ff55; border:1px solid #6c63ff; border-radius:4px; padding:6px 2px; color:#a29bfe;">✓</div>
+          <div style="background:#f5a62388; border:2px solid #f5a623; border-radius:4px; padding:6px 2px; color:#f5a623; font-weight:700;">▶</div>
+          <div style="background:#1a1a2e; border:1px solid #444; border-radius:4px; padding:6px 2px; color:#555;">?</div>
+          <div style="background:#1a1a2e; border:1px solid #444; border-radius:4px; padding:6px 2px; color:#555;">?</div>
+          <!-- Row 3 - all future -->
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">?</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">?</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">?</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">?</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">?</div>
+        </div>
+        <div style="margin-top:8px; font-size:.78rem; color:var(--muted);">
+          <span style="color:#a29bfe;">■ purple = done</span> &nbsp;
+          <span style="color:#f5a623;">■ orange = current</span> &nbsp;
+          <span style="color:#555;">■ dark = future</span>
+        </div>
+        <div style="margin-top:6px; font-size:.82rem; color:var(--muted);">LSTM arrow: row 0 → row 1 → row 2 (left→right). Current pixel ▶ reads LSTM hidden state from ← and from ↑ rows.</div>
+      </div>
+
+      <div class="note-box" style="margin-top:8px;">
+        <strong>Key idea:</strong> The LSTM hidden state <em>carries memory</em> of all previously generated pixels in the current row. After finishing row r, the hidden state is passed as initial state to row r+1. This means every pixel implicitly knows about all previous rows.
+      </div>
+      <p style="margin-top:8px;">The receptive field is a "staircase" shape — Row LSTM sees the full rows above plus a left-to-right strip in the current row.</p>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      2️⃣ Diagonal BiLSTM <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p>Instead of sweeping row-by-row, Diagonal BiLSTM processes pixels <strong>diagonally</strong> — skewed so each diagonal can be computed in parallel, while still respecting the "only look at prior pixels" constraint.</p>
+
+      <!-- Diagonal BiLSTM grid visual -->
+      <div style="margin:14px 0; overflow-x:auto;">
+        <div style="display:inline-grid; grid-template-columns:repeat(5,40px); gap:3px; font-size:.72rem; text-align:center;">
+          <!-- Colors represent diagonal wave fronts -->
+          <div style="background:#00b89488; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=0</div>
+          <div style="background:#00b89455; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=1</div>
+          <div style="background:#00b89433; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=2</div>
+          <div style="background:#00b89422; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=3</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=4</div>
+          <div style="background:#00b89455; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=1</div>
+          <div style="background:#00b89433; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=2</div>
+          <div style="background:#00b89422; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=3</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=4</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=5</div>
+          <div style="background:#00b89433; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=2</div>
+          <div style="background:#00b89422; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=3</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=4</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=5</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=6</div>
+          <div style="background:#00b89422; border:1px solid #00b894; border-radius:4px; padding:6px 2px; color:#00b894;">d=3</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=4</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=5</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=6</div>
+          <div style="background:#1a1a2e; border:1px solid #333; border-radius:4px; padding:6px 2px; color:#444;">d=7</div>
+        </div>
+        <div style="margin-top:8px; font-size:.78rem; color:var(--muted);">Each number d = diagonal wave. All pixels in the same diagonal are processed <em>simultaneously</em> (they don't depend on each other). Darker = processed later.</div>
+      </div>
+
+      <div class="note-box" style="margin-top:8px;">
+        <strong>Why BiLSTM?</strong> Two LSTMs scan simultaneously — one from top-left, one from top-right — giving each pixel a richer 2D context. The two hidden states are combined before predicting the pixel value.
+      </div>
+      <p style="margin-top:8px;"><strong>Advantage over Row LSTM:</strong> Larger effective receptive field (true 2D dependency) at the cost of higher computation. Produces better image quality.</p>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      3️⃣ Masked Convolutions <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p>Prevent the model from "seeing future" pixels. Each convolution kernel is masked so that only pixels <em>above and to the left</em> contribute — preserving the autoregressive property.</p>
+      <p>For RGB images: In the first layer, R channel can attend to context only; G channel can attend to context + R; B channel can attend to context + R + G. In later layers, channels attend to themselves too.</p>
+    </div>
+  </div>
+
+  <h3>Training and Inference</h3>
+  <ul>
+    <li><strong>Training:</strong> Maximum Likelihood Estimation (MLE) — maximize joint probability of pixels in training images. Training can be parallelized (teacher forcing).</li>
+    <li><strong>Inference/Sampling:</strong> Sequential — start from blank canvas, predict pixel by pixel. <em>Cannot be parallelized.</em></li>
+  </ul>
+
+  <div class="pc-grid">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>High-quality images with complex structures</li>
+        <li>Captures long-range dependencies</li>
+        <li>Tractable likelihood computation</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>Very slow inference (sequential pixel-by-pixel)</li>
+        <li>Computationally intensive</li>
+        <li>Slower than PixelCNN for generation</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PIXELCNN ===================== -->
+<section class="section accent-pixel" id="pixelcnn">
+  <div class="section-title"><span class="icon">🎨</span>PixelCNN — Pixel Convolutional Neural Network</div>
+  <div class="section-subtitle">van den Oord et al. (2016); PixelSNAIL extended by Chen et al. (2017)</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <span class="model-tag" style="background:rgba(253,203,110,.2);color:var(--pixelcnn);border:1px solid rgba(253,203,110,.3);">DeepMind 2016</span>
+    <span class="model-tag" style="background:rgba(253,203,110,.2);color:var(--pixelcnn);border:1px solid rgba(253,203,110,.3);">Masked Convolutions</span>
+    <span class="model-tag" style="background:rgba(253,203,110,.2);color:var(--pixelcnn);border:1px solid rgba(253,203,110,.3);">Parallelizable Training</span>
+    <span class="model-tag" style="background:rgba(253,203,110,.2);color:var(--pixelcnn);border:1px solid rgba(253,203,110,.3);">Faster than PixelRNN</span>
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">💡</span>
+    <p><strong>Key Insight:</strong> Images are 2D, not 1D. Rather than flattening and using an RNN, use a <em>2D convolutional network</em> with <strong>masked kernels</strong> that enforce the autoregressive ordering naturally.</p>
+  </div>
+
+  <h3>Masked Convolution Explained</h3>
+  <p>The convolution kernel is masked so each pixel can only attend to pixels <em>above it and to its left</em> (never right or below):</p>
+
+  <div style="display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap; margin: 16px 0;">
+    <div>
+      <p style="font-size:.85rem; color:var(--muted); margin-bottom:8px;">5×5 Mask (✓=visible, ✗=masked)</p>
+      <div class="mask-grid">
+        <div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div>
+        <div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div>
+        <div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-yes">✓</div><div class="mask-cell mask-cur">●</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div>
+        <div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div>
+        <div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div><div class="mask-cell mask-no">✗</div>
+      </div>
+      <p style="font-size:.78rem; color:var(--muted); margin-top:6px;">Orange ● = current pixel</p>
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <h4 style="color:#fff; margin-bottom:8px;">How the mask works:</h4>
+      <ul>
+        <li>All pixels in rows <em>above</em> the current pixel: <strong>visible</strong></li>
+        <li>Pixels in the same row, to the <em>left</em>: <strong>visible</strong></li>
+        <li>Current pixel center (Type B mask): sometimes <strong>visible</strong></li>
+        <li>Pixels to the <em>right</em> or <em>below</em>: <strong>masked out (zero)</strong></li>
+      </ul>
+      <p style="margin-top:8px; font-size:.88rem; color:var(--muted);">Multiplying the kernel by this binary mask before applying convolution enforces the autoregressive property.</p>
+    </div>
+  </div>
+
+  <h3>⚠️ The Blind Spot Problem</h3>
+  <div class="note-box">
+    <strong>🚨 Known Issue:</strong> PixelCNN's masked convolutions create a <em>blind spot</em> in the receptive field. The model cannot see pixels to the <em>right and below</em> the current pixel — which means after several layers, some context is always missing! This can lead to artifacts in generated images.
+  </div>
+  <p><strong>Fix:</strong> PixelSNAIL (2017) addresses this by incorporating <strong>self-attention mechanisms</strong>, giving the model access to the full causal context without the blind spot issue.</p>
+
+  <h3>PixelCNN vs PixelRNN</h3>
+  <table class="cmp-table">
+    <tr><th>Aspect</th><th>PixelRNN</th><th>PixelCNN</th></tr>
+    <tr><td>Core mechanism</td><td>LSTM hidden states</td><td>Masked convolutions</td></tr>
+    <tr><td>Training speed</td><td>Slow (sequential)</td><td>Fast (parallelizable)</td></tr>
+    <tr><td>Generation speed</td><td>Sequential (slow)</td><td>Sequential (slow)</td></tr>
+    <tr><td>Context capture</td><td>Theoretically unlimited</td><td>Limited by receptive field</td></tr>
+    <tr><td>Blind spot</td><td>No</td><td>Yes (fixed in PixelSNAIL)</td></tr>
+  </table>
+</section>
+
+<!-- ===================== WAVENET ===================== -->
+<section class="section accent-wave" id="wavenet">
+  <div class="section-title"><span class="icon">🎵</span>WaveNet — Generative Audio Model</div>
+  <div class="section-subtitle">van den Oord et al. (2016) — State-of-the-art speech synthesis via dilated convolutions</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+    <span class="model-tag" style="background:rgba(85,239,196,.2);color:var(--wavenet);border:1px solid rgba(85,239,196,.3);">DeepMind 2016</span>
+    <span class="model-tag" style="background:rgba(85,239,196,.2);color:var(--wavenet);border:1px solid rgba(85,239,196,.3);">Dilated Convolutions</span>
+    <span class="model-tag" style="background:rgba(85,239,196,.2);color:var(--wavenet);border:1px solid rgba(85,239,196,.3);">Audio Generation</span>
+    <span class="model-tag" style="background:rgba(85,239,196,.2);color:var(--wavenet);border:1px solid rgba(85,239,196,.3);">SOTA Speech Synthesis</span>
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🎙️</span>
+    <p><strong>Core Idea:</strong> Generate raw audio waveforms sample-by-sample using <strong>dilated causal convolutions</strong> that exponentially increase the receptive field, capturing long-range temporal dependencies.</p>
+  </div>
+
+  <h3>What are Dilated Convolutions?</h3>
+  <p>Standard convolutions look at <em>adjacent</em> elements. Dilated convolutions introduce <strong>gaps</strong> between kernel elements, exponentially expanding the receptive field with each layer:</p>
+
+  <div class="dilated-demo">
+    <div class="d-layer">
+      <div class="d-label">Output (dilation=4):</div>
+      <div class="d-node active">y</div>
+    </div>
+    <div class="d-layer">
+      <div class="d-label">Layer 3 (d=4):</div>
+      <div class="d-node active">h</div>
+      <div class="d-node inactive">·</div><div class="d-node inactive">·</div><div class="d-node inactive">·</div>
+      <div class="d-node active">h</div>
+      <div class="d-node inactive">·</div><div class="d-node inactive">·</div><div class="d-node inactive">·</div>
+      <div class="d-node active">h</div>
+    </div>
+    <div class="d-layer">
+      <div class="d-label">Layer 2 (d=2):</div>
+      <div class="d-node active">h</div><div class="d-node inactive">·</div>
+      <div class="d-node active">h</div><div class="d-node inactive">·</div>
+      <div class="d-node active">h</div><div class="d-node inactive">·</div>
+      <div class="d-node active">h</div><div class="d-node inactive">·</div>
+      <div class="d-node active">h</div>
+    </div>
+    <div class="d-layer">
+      <div class="d-label">Layer 1 (d=1):</div>
+      <div class="d-node active">x₁</div><div class="d-node active">x₂</div><div class="d-node active">x₃</div>
+      <div class="d-node active">x₄</div><div class="d-node active">x₅</div><div class="d-node active">x₆</div>
+      <div class="d-node active">x₇</div><div class="d-node active">x₈</div><div class="d-node active">x₉</div>
+    </div>
+  </div>
+
+  <div class="keypoint">
+    <span class="kp-icon">📐</span>
+    <p>With dilation rates 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 (and then repeating), WaveNet achieves a <strong>receptive field of 1024 samples</strong> with just 10 layers. At 16kHz audio, that's 64ms of context!</p>
+  </div>
+
+  <h3>Applications</h3>
+  <ul>
+    <li>🗣️ <strong>Text-to-Speech (TTS)</strong>: Used in Google Assistant, Google Duplex</li>
+    <li>🎶 <strong>Music Generation</strong>: Generates realistic musical audio</li>
+    <li>📞 <strong>Audio Compression</strong>: Learned audio codecs</li>
+  </ul>
+
+  <div class="pc-grid">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>State-of-the-art speech synthesis quality</li>
+        <li>Long-range temporal dependencies via dilation</li>
+        <li>More parallelizable training than RNNs</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>Still sequential at generation time (slow)</li>
+        <li>High-quality audio needs large models</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TRANSFORMERS ===================== -->
+<section class="section" id="transformers">
+  <div class="section-title"><span class="icon">⚡</span>Transformer-based Autoregressive Models</div>
+  <div class="section-subtitle">Vaswani et al. (2017) — Self-attention for flexible global context</div>
+
+  <div class="keypoint">
+    <span class="kp-icon">🚀</span>
+    <p>Transformers replaced recurrence with <strong>self-attention</strong>, enabling fully parallel processing during training while still generating autoregressively at inference time via causal masking.</p>
+  </div>
+
+  <h3>How Causal Self-Attention Works</h3>
+  <p>In a standard Transformer, each position can attend to all positions. In an <strong>autoregressive (causal) Transformer</strong>, a lower-triangular mask is applied so position i can only attend to positions ≤ i:</p>
+
+  <div class="formula-box">
+    <div class="formula-label">Causal Self-Attention</div>
+    \[ \text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^T}{\sqrt{d_k}} + M\right) V \]
+    where \(M_{ij} = -\infty\) if \(j > i\) (mask out future positions), \(0\) otherwise.
+  </div>
+
+  <h3>Key Models</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">🤖</div>
+      <h4>GPT Family</h4>
+      <p>Decoder-only Transformer for text generation. GPT-3 set records on virtually every NLP benchmark. GPT-4, Claude, etc. follow the same paradigm.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎨</div>
+      <h4>Image Transformers</h4>
+      <p>Apply Transformer autoregressive modeling to image patches (pixels or VQVAE tokens). E.g., iGPT, DALL-E v1.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎵</div>
+      <h4>Audio Transformers</h4>
+      <p>AudioLM, MusicLM — model audio tokens autoregressively with Transformers for high-quality audio generation.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h4>Multimodal</h4>
+      <p>Unify text, images, video into a single token sequence. One model handles multiple modalities.</p>
+    </div>
+  </div>
+
+  <div class="pc-grid">
+    <div class="pro-box">
+      <h5>✅ Pros</h5>
+      <ul class="pc-list">
+        <li>Highly parallelizable training</li>
+        <li>Global context (no "blind spot")</li>
+        <li>Scales incredibly well with data and compute</li>
+        <li>Flexible — works for text, images, audio, video</li>
+      </ul>
+    </div>
+    <div class="con-box">
+      <h5>❌ Cons</h5>
+      <ul class="pc-list">
+        <li>O(n²) attention complexity</li>
+        <li>Requires enormous training data</li>
+        <li>Sequential generation remains slow</li>
+        <li>Very large models → high compute cost</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== COMPARISON ===================== -->
+<section class="section" id="comparison">
+  <div class="section-title"><span class="icon">📊</span>Model Comparison</div>
+  <div class="section-subtitle">All autoregressive models side by side</div>
+
+  <table class="cmp-table">
+    <tr>
+      <th>Model</th><th>Year</th><th>Data Type</th><th>Core Mechanism</th><th>Parameters</th><th>Key Limitation</th>
+    </tr>
+    <tr>
+      <td>FVSBN</td><td>2000</td><td>Binary</td><td>Sigmoid logistic regression per variable</td><td>O(n²) — quadratic</td><td>Poor scalability</td>
+    </tr>
+    <tr>
+      <td>NADE</td><td>2011</td><td>Binary</td><td>Masked feedforward + weight sharing</td><td>O(d·H) — linear</td><td>Binary data only</td>
+    </tr>
+    <tr>
+      <td>RNADE</td><td>2013</td><td>Continuous</td><td>Mixture of Gaussians neural net</td><td>O(d·H·K)</td><td>Scalability, tuning K</td>
+    </tr>
+    <tr>
+      <td>RNN / LSTM</td><td>~2014</td><td>Any sequence</td><td>Recurrent hidden state</td><td>O(H²)</td><td>Vanishing gradients, slow</td>
+    </tr>
+    <tr>
+      <td>PixelRNN</td><td>2016</td><td>Images</td><td>2D LSTM (Row / Diagonal BiLSTM)</td><td>Large</td><td>Very slow inference</td>
+    </tr>
+    <tr>
+      <td>PixelCNN</td><td>2016</td><td>Images</td><td>Masked 2D convolutions</td><td>Medium</td><td>Blind spot problem</td>
+    </tr>
+    <tr>
+      <td>WaveNet</td><td>2016</td><td>Audio</td><td>Dilated causal convolutions</td><td>Large</td><td>Slow generation</td>
+    </tr>
+    <tr>
+      <td>Transformers</td><td>2017+</td><td>Any (text, image, audio)</td><td>Causal self-attention</td><td>Massive</td><td>O(n²) complexity, data hungry</td>
+    </tr>
+  </table>
+
+  <h3>Historical Timeline</h3>
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-year">2000</div>
+      <div class="tl-title">FVSBN (Bengio & Bengio)</div>
+      <div class="tl-desc">First neural autoregressive model. Logistic regression conditionals, O(n²) parameters.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-year">2011</div>
+      <div class="tl-title">NADE (Larochelle & Murray)</div>
+      <div class="tl-desc">Weight sharing makes autoregressive models scalable. Inspired normalizing flows and MADE.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-year">2013</div>
+      <div class="tl-title">RNADE (Uria et al.)</div>
+      <div class="tl-desc">Extended NADE to continuous data via mixture of Gaussians.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-year">2016</div>
+      <div class="tl-title">PixelRNN / PixelCNN / WaveNet (van den Oord et al.)</div>
+      <div class="tl-desc">Applied autoregressive modeling to images and audio with deep neural architectures. Achieved SOTA generation quality.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-year">2017+</div>
+      <div class="tl-title">Transformers (Vaswani et al.) → GPT, BERT, …</div>
+      <div class="tl-desc">Self-attention revolutionizes NLP and beyond. GPT series dominates language generation. Scaling laws emerge.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-year">2020+</div>
+      <div class="tl-title">Large Language Models (GPT-3, GPT-4, Claude, …)</div>
+      <div class="tl-desc">Billion-parameter autoregressive Transformers achieve remarkable generalization across tasks.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SUMMARY ===================== -->
+<section class="section" id="summary">
+  <div class="section-title"><span class="icon">📝</span>Summary — The Big Picture</div>
+  <div class="section-subtitle">Everything you need to remember from Day 5</div>
+
+  <h3>What Autoregressive Models Do</h3>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">1️⃣</div>
+      <h4>Define an Ordering</h4>
+      <p>Choose an ordering for variables: x₁, x₂, …, xₙ (e.g., raster scan for images, left-to-right for text).</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">2️⃣</div>
+      <h4>Factorize the Joint</h4>
+      <p>Express joint as a product of conditionals via the chain rule: P(X) = ∏ P(xᵢ | x&lt;ᵢ).</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">3️⃣</div>
+      <h4>Train with MLE</h4>
+      <p>Maximize log-likelihood of training data — equivalent to minimizing KL divergence from the true data distribution.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">4️⃣</div>
+      <h4>Sample Recursively</h4>
+      <p>Generate x₁ first, then x₂|x₁, then x₃|x₁,x₂, and so on. Always sequential at generation time.</p>
+    </div>
+  </div>
+
+  <h3>Key Properties</h3>
+  <div class="keypoint">
+    <span class="kp-icon">✅</span>
+    <p><strong>Tractable Likelihoods:</strong> Unlike GANs or VAEs, autoregressive models give exact log-likelihood — great for comparing models and data compression.</p>
+  </div>
+  <div class="keypoint">
+    <span class="kp-icon">✅</span>
+    <p><strong>Flexible:</strong> Extends naturally to multi-class, multi-dimensional, and structured data. Works for text, images, audio, video.</p>
+  </div>
+  <div class="keypoint">
+    <span class="kp-icon">✅</span>
+    <p><strong>Efficient Training:</strong> Modern architectures (PixelCNN, Transformers) allow <em>parallelized</em> training with teacher forcing.</p>
+  </div>
+
+  <h3>Key Limitations</h3>
+  <ul>
+    <li>⚠️ <strong>No global latent features:</strong> No natural way to extract a compact semantic representation of the data.</li>
+    <li>⚠️ <strong>Not suited for clustering:</strong> Not designed for unsupervised feature learning or clustering tasks.</li>
+    <li>⚠️ <strong>Ordering sensitivity:</strong> The choice of variable ordering can significantly affect model performance.</li>
+    <li>⚠️ <strong>Sequential generation:</strong> Always sequential at inference time — cannot be fully parallelized.</li>
+  </ul>
+
+  <h3>The Appendix Extras: Learning from Histograms</h3>
+  <div class="accordion">
+    <div class="acc-header" onclick="toggleAcc(this)">
+      📊 Learning by Counting (Histogram Approach) <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <p>The simplest generative model: estimate P<sub>data</sub> by counting frequencies in training data. For a k-valued variable: p<sub>i</sub> = (# times value i appears) / (total data points).</p>
+      <p><strong>Problem:</strong> learned histogram = training data distribution → <em>poor generalization</em>. The model just memorizes the training set.</p>
+      <p><strong>Solution:</strong> Parameterized distributions (e.g., Gaussian, mixture models, neural networks) that can generalize beyond training examples — the key motivation for all the models in this lecture.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FLASHCARDS ===================== -->
+<section class="section" id="flashcards">
+  <div class="section-title"><span class="icon">🃏</span>Flashcards — Flip to Test Yourself</div>
+  <div class="section-subtitle">Click any card to reveal the answer!</div>
+
+  <div class="fc-grid">
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          What is the <strong>chain rule factorization</strong> for autoregressive models?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          \[ p(x_1,\ldots,x_n) = \prod_{i=1}^{n} p(x_i \mid x_{&lt;i}) \]
+          Each element is predicted conditioned on all previous elements.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          What is the <strong>parameter count</strong> of FVSBN for n variables?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          <strong>n(n+1)/2</strong> — quadratic in n.
+          For MNIST (n=784): ~307,000 parameters.
+          Each variable xᵢ has its own weight vector of size i.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          What is the <strong>key innovation of NADE</strong> over FVSBN?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          <strong>Shared weight matrix W</strong> across all conditionals.
+          Instead of separate weights per variable, all conditionals share the same W, drastically reducing parameters and improving generalization.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          How does <strong>RNADE</strong> handle continuous data?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          Uses a <strong>Mixture of Gaussians</strong>:
+          \[ p(x_i \mid x_{&lt;i}) = \sum_k \pi_k \mathcal{N}(x_i \mid \mu_k, \sigma_k^2) \]
+          Parameters (πₖ, μₖ, σₖ) are output by a neural network.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          What <strong>order</strong> does PixelRNN generate pixels in?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          <strong>Raster-scan order</strong>: left-to-right, top-to-bottom (like reading text). Each pixel is conditioned on all pixels above it and to its left.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          What is the <strong>blind spot problem</strong> in PixelCNN?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          Masked convolutions prevent seeing pixels to the <strong>right and below</strong>. After stacking layers, some valid context is always missing from the receptive field, causing artifacts. Fixed by PixelSNAIL with self-attention.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          What makes <strong>WaveNet</strong> able to capture long-range audio dependencies?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          <strong>Dilated (atrous) convolutions</strong> with exponentially growing dilation rates (1, 2, 4, 8, …, 512). This gives a receptive field of 1024+ samples with only ~10 layers.
+        </div>
+      </div>
+    </div>
+
+    <div class="flashcard-wrap" onclick="flipCard(this)">
+      <div class="flashcard">
+        <div class="fc-front">
+          Why does <strong>minimizing KL divergence</strong> equal maximizing log-likelihood?
+          <div class="fc-hint">👆 Click to flip</div>
+        </div>
+        <div class="fc-back">
+          D(P_data ‖ P_θ) = H(P_data) − E[log P_θ(x)].
+          H(P_data) is <strong>constant</strong> w.r.t. θ, so minimizing KL ≡ maximizing E[log P_θ(x)] ≡ maximizing log-likelihood!
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== QUIZ ===================== -->
+<section class="section accent-quiz" id="quiz">
+  <div class="section-title"><span class="icon">🧪</span>Knowledge Quiz — Test Yourself!</div>
+  <div class="section-subtitle">10 questions covering all lecture material. No peeking!</div>
+
+  <div id="quiz-container">
+
+    <div class="quiz-q" id="q1">
+      <div class="quiz-question">Q1. What is the fundamental formula of autoregressive models?</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q1','wrong')"><span class="opt-letter">A</span> p(x) = Σᵢ p(xᵢ)</div>
+        <div class="quiz-opt" onclick="answer(this,'q1','correct')"><span class="opt-letter">B</span> p(x₁,…,xₙ) = ∏ p(xᵢ | x₁,…,xᵢ₋₁)</div>
+        <div class="quiz-opt" onclick="answer(this,'q1','wrong')"><span class="opt-letter">C</span> p(x) = encoder(x) · decoder(x)</div>
+        <div class="quiz-opt" onclick="answer(this,'q1','wrong')"><span class="opt-letter">D</span> p(x) = ∫ p(x|z)p(z) dz</div>
+      </div>
+      <div class="quiz-feedback" id="q1-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q2">
+      <div class="quiz-question">Q2. A 128×128 RGB image has how many dimensions?</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q2','wrong')"><span class="opt-letter">A</span> 16,384</div>
+        <div class="quiz-opt" onclick="answer(this,'q2','wrong')"><span class="opt-letter">B</span> 128,000</div>
+        <div class="quiz-opt" onclick="answer(this,'q2','correct')"><span class="opt-letter">C</span> 49,152</div>
+        <div class="quiz-opt" onclick="answer(this,'q2','wrong')"><span class="opt-letter">D</span> 393,216</div>
+      </div>
+      <div class="quiz-feedback" id="q2-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q3">
+      <div class="quiz-question">Q3. FVSBN was introduced by which researchers in which year?</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q3','wrong')"><span class="opt-letter">A</span> Larochelle & Murray (2011)</div>
+        <div class="quiz-opt" onclick="answer(this,'q3','correct')"><span class="opt-letter">B</span> Bengio & Bengio (2000)</div>
+        <div class="quiz-opt" onclick="answer(this,'q3','wrong')"><span class="opt-letter">C</span> van den Oord et al. (2016)</div>
+        <div class="quiz-opt" onclick="answer(this,'q3','wrong')"><span class="opt-letter">D</span> Uria et al. (2013)</div>
+      </div>
+      <div class="quiz-feedback" id="q3-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q4">
+      <div class="quiz-question">Q4. What is the total number of parameters in FVSBN for n variables?</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q4','wrong')"><span class="opt-letter">A</span> n</div>
+        <div class="quiz-opt" onclick="answer(this,'q4','wrong')"><span class="opt-letter">B</span> n·H (H = hidden size)</div>
+        <div class="quiz-opt" onclick="answer(this,'q4','correct')"><span class="opt-letter">C</span> n(n+1)/2</div>
+        <div class="quiz-opt" onclick="answer(this,'q4','wrong')"><span class="opt-letter">D</span> 2ⁿ</div>
+      </div>
+      <div class="quiz-feedback" id="q4-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q5">
+      <div class="quiz-question">Q5. NADE improves over FVSBN primarily by introducing:</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q5','wrong')"><span class="opt-letter">A</span> Recurrent connections between variables</div>
+        <div class="quiz-opt" onclick="answer(this,'q5','correct')"><span class="opt-letter">B</span> Shared weight matrix across all conditional distributions</div>
+        <div class="quiz-opt" onclick="answer(this,'q5','wrong')"><span class="opt-letter">C</span> A mixture of Gaussians output</div>
+        <div class="quiz-opt" onclick="answer(this,'q5','wrong')"><span class="opt-letter">D</span> Dilated convolutions</div>
+      </div>
+      <div class="quiz-feedback" id="q5-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q6">
+      <div class="quiz-question">Q6. RNADE models continuous data using:</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q6','wrong')"><span class="opt-letter">A</span> A single Gaussian per conditional</div>
+        <div class="quiz-opt" onclick="answer(this,'q6','wrong')"><span class="opt-letter">B</span> A softmax categorical distribution</div>
+        <div class="quiz-opt" onclick="answer(this,'q6','correct')"><span class="opt-letter">C</span> A mixture of Gaussians parameterized by a neural network</div>
+        <div class="quiz-opt" onclick="answer(this,'q6','wrong')"><span class="opt-letter">D</span> A Beta distribution</div>
+      </div>
+      <div class="quiz-feedback" id="q6-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q7">
+      <div class="quiz-question">Q7. Minimizing KL divergence D(P_data ‖ P_θ) is equivalent to:</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q7','wrong')"><span class="opt-letter">A</span> Maximizing the model's parameter count</div>
+        <div class="quiz-opt" onclick="answer(this,'q7','correct')"><span class="opt-letter">B</span> Maximizing the expected log-likelihood E[log P_θ(x)]</div>
+        <div class="quiz-opt" onclick="answer(this,'q7','wrong')"><span class="opt-letter">C</span> Minimizing the entropy of P_data</div>
+        <div class="quiz-opt" onclick="answer(this,'q7','wrong')"><span class="opt-letter">D</span> Maximizing D(P_θ ‖ P_data)</div>
+      </div>
+      <div class="quiz-feedback" id="q7-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q8">
+      <div class="quiz-question">Q8. PixelRNN generates images in which order?</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q8','wrong')"><span class="opt-letter">A</span> Random order (any pixel first)</div>
+        <div class="quiz-opt" onclick="answer(this,'q8','wrong')"><span class="opt-letter">B</span> Bottom-to-top, right-to-left</div>
+        <div class="quiz-opt" onclick="answer(this,'q8','correct')"><span class="opt-letter">C</span> Raster-scan: left-to-right, top-to-bottom</div>
+        <div class="quiz-opt" onclick="answer(this,'q8','wrong')"><span class="opt-letter">D</span> Center-outward spiral</div>
+      </div>
+      <div class="quiz-feedback" id="q8-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q9">
+      <div class="quiz-question">Q9. The "blind spot" problem in PixelCNN is caused by:</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q9','wrong')"><span class="opt-letter">A</span> Using too many layers</div>
+        <div class="quiz-opt" onclick="answer(this,'q9','correct')"><span class="opt-letter">B</span> Masked convolutions preventing access to some valid context (pixels right/below)</div>
+        <div class="quiz-opt" onclick="answer(this,'q9','wrong')"><span class="opt-letter">C</span> Weight sharing across channels</div>
+        <div class="quiz-opt" onclick="answer(this,'q9','wrong')"><span class="opt-letter">D</span> Using sigmoid instead of softmax</div>
+      </div>
+      <div class="quiz-feedback" id="q9-fb"></div>
+    </div>
+
+    <div class="quiz-q" id="q10">
+      <div class="quiz-question">Q10. WaveNet uses ________ to achieve exponentially growing receptive fields for audio modeling.</div>
+      <div class="quiz-options">
+        <div class="quiz-opt" onclick="answer(this,'q10','wrong')"><span class="opt-letter">A</span> Row LSTM layers</div>
+        <div class="quiz-opt" onclick="answer(this,'q10','wrong')"><span class="opt-letter">B</span> Self-attention with causal masking</div>
+        <div class="quiz-opt" onclick="answer(this,'q10','correct')"><span class="opt-letter">C</span> Dilated (atrous) causal convolutions</div>
+        <div class="quiz-opt" onclick="answer(this,'q10','wrong')"><span class="opt-letter">D</span> Mixture of Gaussians output heads</div>
+      </div>
+      <div class="quiz-feedback" id="q10-fb"></div>
+    </div>
+
+    <button class="btn-quiz" onclick="showScore()">📊 Show My Score</button>
+    <div id="quiz-score"></div>
+
+  </div>
+</section>
+
+</main>
+</div><!-- end layout -->
+
+<script>
+// ---- NAV SCROLL ----
+function scrollTo(id) {
+  const el = document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ---- ACCORDION ----
+function toggleAcc(header) {
+  const body = header.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  document.querySelectorAll('.acc-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.acc-header').forEach(h => h.classList.remove('open'));
+  if(!isOpen) {
+    body.classList.add('open');
+    header.classList.add('open');
+  }
+}
+
+// ---- FLASHCARD FLIP ----
+function flipCard(wrap) {
+  wrap.querySelector('.flashcard').classList.toggle('flipped');
+  if (window.MathJax) MathJax.typesetPromise([wrap]);
+}
+
+// ---- PIXEL DEMO ----
+const GRID = 8;
+let pixelAnimInterval = null;
+let pixelStep = 0;
+
+function initPixelDemo() {
+  const demo = document.getElementById('pixel-demo');
+  demo.innerHTML = '';
+  for(let i = 0; i < GRID*GRID; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'pixel-cell future';
+    cell.id = 'px-' + i;
+    demo.appendChild(cell);
+  }
+}
+
+function animatePixels() {
+  if(pixelAnimInterval) { clearInterval(pixelAnimInterval); }
+  pixelStep = 0;
+  initPixelDemo();
+  const btn = document.getElementById('pixel-demo-btn');
+  btn.textContent = '⏸ Generating...';
+
+  pixelAnimInterval = setInterval(() => {
+    if(pixelStep > 0) {
+      const prev = document.getElementById('px-' + (pixelStep-1));
+      if(prev) prev.className = 'pixel-cell generated';
+    }
+    if(pixelStep < GRID*GRID) {
+      const cur = document.getElementById('px-' + pixelStep);
+      if(cur) cur.className = 'pixel-cell current';
+      pixelStep++;
+    } else {
+      clearInterval(pixelAnimInterval);
+      btn.textContent = '▶ Restart';
+    }
+  }, 100);
+}
+
+// ---- QUIZ ----
+const quizAnswers = {
+  'q1': 'B', 'q2': 'C', 'q3': 'B', 'q4': 'C', 'q5': 'B',
+  'q6': 'C', 'q7': 'B', 'q8': 'C', 'q9': 'B', 'q10': 'C'
+};
+const quizExplanations = {
+  'q1': '✅ The chain rule factorization p(x) = ∏ p(xᵢ|x<ᵢ) is the core formula.',
+  'q2': '✅ 128 × 128 × 3 = 49,152 — this illustrates the curse of dimensionality!',
+  'q3': '✅ Bengio & Bengio (2000) introduced FVSBN — the first neural AR model.',
+  'q4': '✅ Total params = 1+2+…+n = n(n+1)/2 — quadratic growth!',
+  'q5': '✅ Weight sharing (shared W matrix) is NADE\'s key innovation — reduces O(n²) to O(dH).',
+  'q6': '✅ RNADE uses a mixture of K Gaussians: Σ πₖ N(xᵢ|μₖ,σₖ²). Uria et al. (2013).',
+  'q7': '✅ KL = H(Pdata) - E[log Pθ]. Since H(Pdata) is constant, minimizing KL = maximizing log-likelihood.',
+  'q8': '✅ Raster-scan: left-to-right, top-to-bottom. Same direction as reading.',
+  'q9': '✅ Masked convolutions create a blind spot — pixels to the right/below are never seen, even indirectly.',
+  'q10': '✅ Dilated convolutions with rates 1,2,4,8,...,512 give a 1024-sample receptive field in ~10 layers.'
+};
+const quizWrong = {
+  'q1': '❌ The chain rule product ∏ p(xᵢ|x<ᵢ) is the correct answer.',
+  'q2': '❌ 128×128×3 = 49,152. (Not 16384, not 128000, not 393216.)',
+  'q3': '❌ FVSBN = Bengio & Bengio (2000). NADE = Larochelle & Murray (2011).',
+  'q4': '❌ FVSBN has n(n+1)/2 parameters — one weight vector of length i for each xᵢ.',
+  'q5': '❌ NADE\'s key improvement is the shared weight matrix W, not recurrence or mixtures.',
+  'q6': '❌ RNADE uses a mixture of Gaussians — K Gaussians mixed to model arbitrary continuous distributions.',
+  'q7': '❌ The correct answer is B: minimizing KL ≡ maximizing E[log Pθ(x)].',
+  'q8': '❌ PixelRNN uses raster-scan order (left→right, top→bottom), like reading.',
+  'q9': '❌ The blind spot comes from masked convolutions: valid context (right/below pixels) is always hidden.',
+  'q10': '❌ WaveNet uses dilated causal convolutions, not attention or RNNs.'
+};
+
+let quizScore = 0;
+let quizAnswered = {};
+
+function answer(opt, qid, result) {
+  if(quizAnswered[qid]) return;
+  quizAnswered[qid] = result;
+
+  const opts = opt.parentElement.querySelectorAll('.quiz-opt');
+  opts.forEach(o => o.style.pointerEvents = 'none');
+
+  const fb = document.getElementById(qid + '-fb');
+  if(result === 'correct') {
+    opt.classList.add('correct');
+    quizScore++;
+    fb.textContent = quizExplanations[qid];
+    fb.className = 'quiz-feedback show correct';
+  } else {
+    opt.classList.add('wrong');
+    fb.textContent = quizWrong[qid];
+    fb.className = 'quiz-feedback show wrong';
+    // highlight correct
+    const letters = ['A','B','C','D'];
+    opts.forEach((o,i) => {
+      if(letters[i] === quizAnswers[qid]) o.classList.add('correct');
+    });
+  }
+  if (window.MathJax) MathJax.typesetPromise([fb]);
+}
+
+function showScore() {
+  const total = Object.keys(quizAnswers).length;
+  const answered = Object.keys(quizAnswered).length;
+  const scoreEl = document.getElementById('quiz-score');
+  let emoji = quizScore >= 9 ? '🏆' : quizScore >= 7 ? '🌟' : quizScore >= 5 ? '👍' : '📚';
+  let msg = quizScore >= 9 ? 'Outstanding! You mastered autoregressive models!' :
+            quizScore >= 7 ? 'Great job! Review a few more details.' :
+            quizScore >= 5 ? 'Good effort! Go over the sections you missed.' :
+            'Keep studying! Review the lecture sections and try again.';
+  scoreEl.innerHTML = `${emoji} <strong>${quizScore} / ${total}</strong><br><span style="font-size:1rem;font-weight:400;color:var(--muted)">${msg}</span>`;
+  scoreEl.style.display = 'block';
+  scoreEl.scrollIntoView({behavior:'smooth'});
+}
+
+// ---- GMM Canvas (RNADE) ----
+function drawGMMCanvas() {
+  const canvas = document.getElementById('gmm-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Gaussian PDF helper
+  function gaussian(x, mu, sigma) {
+    return Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Domain: x from 120 to 220 (pixel brightness values)
+  const xMin = 110, xMax = 220;
+  function toCanvasX(v) { return ((v - xMin) / (xMax - xMin)) * (W - 60) + 30; }
+
+  // Two components: daytime (bright ~175) and nighttime (dark ~145)
+  const g1 = { mu: 175, sigma: 7, w: 0.55, color: '#00b894' };   // daytime - green
+  const g2 = { mu: 145, sigma: 9, w: 0.45, color: '#74b9ff' };   // nighttime - blue
+
+  // Find max for scaling
+  let maxMix = 0;
+  for (let x = xMin; x <= xMax; x += 0.5) {
+    const mix = g1.w * gaussian(x, g1.mu, g1.sigma) + g2.w * gaussian(x, g2.mu, g2.sigma);
+    if (mix > maxMix) maxMix = mix;
+  }
+  const scaleY = (H - 50) / maxMix;
+
+  // Draw grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,.07)';
+  ctx.lineWidth = 1;
+  for (let y = 10; y < H - 30; y += 30) {
+    ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(W - 30, y); ctx.stroke();
+  }
+
+  // Draw component 1 (green - daytime)
+  ctx.beginPath();
+  for (let x = xMin; x <= xMax; x += 0.5) {
+    const cx = toCanvasX(x);
+    const cy = H - 35 - g1.w * gaussian(x, g1.mu, g1.sigma) * scaleY;
+    x === xMin ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+  }
+  ctx.strokeStyle = g1.color; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Draw component 2 (blue - nighttime)
+  ctx.beginPath();
+  for (let x = xMin; x <= xMax; x += 0.5) {
+    const cx = toCanvasX(x);
+    const cy = H - 35 - g2.w * gaussian(x, g2.mu, g2.sigma) * scaleY;
+    x === xMin ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+  }
+  ctx.strokeStyle = g2.color; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Draw mixture (teal, filled)
+  ctx.beginPath();
+  for (let x = xMin; x <= xMax; x += 0.5) {
+    const cx = toCanvasX(x);
+    const mix = g1.w * gaussian(x, g1.mu, g1.sigma) + g2.w * gaussian(x, g2.mu, g2.sigma);
+    const cy = H - 35 - mix * scaleY;
+    x === xMin ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+  }
+  ctx.lineTo(toCanvasX(xMax), H - 35);
+  ctx.lineTo(toCanvasX(xMin), H - 35);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,210,211,0.15)'; ctx.fill();
+  ctx.strokeStyle = '#00d2d3'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let x = xMin; x <= xMax; x += 0.5) {
+    const cx = toCanvasX(x);
+    const mix = g1.w * gaussian(x, g1.mu, g1.sigma) + g2.w * gaussian(x, g2.mu, g2.sigma);
+    const cy = H - 35 - mix * scaleY;
+    x === xMin ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+  }
+  ctx.stroke();
+
+  // Draw single Gaussian attempt (red dashed) — fitted to overall mean/var
+  const meanSingle = g1.w * g1.mu + g2.w * g2.mu;  // ~161
+  const varSingle  = g1.w * (g1.sigma**2 + (g1.mu - meanSingle)**2) + g2.w * (g2.sigma**2 + (g2.mu - meanSingle)**2);
+  const sigSingle  = Math.sqrt(varSingle);
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  for (let x = xMin; x <= xMax; x += 0.5) {
+    const cx = toCanvasX(x);
+    const cy = H - 35 - gaussian(x, meanSingle, sigSingle) * scaleY;
+    x === xMin ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+  }
+  ctx.strokeStyle = '#e17055'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.setLineDash([]);
+
+  // X-axis
+  ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(28, H - 35); ctx.lineTo(W - 28, H - 35); ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  [130, 145, 160, 175, 190, 210].forEach(v => {
+    ctx.fillText(v, toCanvasX(v), H - 18);
+  });
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.font = '10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('pixel brightness →', 30, H - 5);
+}
+
+// Run after page loads
+document.addEventListener('DOMContentLoaded', function() {
+  initPixelDemo();
+  drawGMMCanvas();
+});
+
+// MathJax config is set in <head> before the library loads
+</script>
+</body>
+</html>
