@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📉 KL Divergence → MLE → VAE — Deep Dive</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+<style>
+:root {
+  --bg: #0d0d1a;
+  --card: #13132a;
+  --card2: #1a1a35;
+  --primary: #7c6fff;
+  --accent: #00e5d3;
+  --gold: #f5c542;
+  --red: #ff6b6b;
+  --green: #51cf66;
+  --blue: #74b9ff;
+  --pink: #fd79a8;
+  --text: #e8e8f0;
+  --muted: #8888aa;
+  --border: rgba(255,255,255,0.07);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.75; }
+
+/* HERO */
+.hero {
+  background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #0a1a2e 100%);
+  padding: 52px 32px 44px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 { font-size: 2.2rem; font-weight: 800;
+  background: linear-gradient(90deg, #7c6fff, #00e5d3); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 10px; }
+.hero p { color: var(--muted); max-width: 640px; margin: 0 auto; font-size: 1rem; }
+
+/* PROGRESS STRIP */
+.progress-strip {
+  display: flex; background: var(--card); border-bottom: 1px solid var(--border);
+  overflow-x: auto; gap: 0;
+}
+.ps-step {
+  flex: 1; min-width: 130px; padding: 14px 10px; text-align: center;
+  font-size: .8rem; color: var(--muted); border-right: 1px solid var(--border);
+  cursor: pointer; transition: all .2s; position: relative;
+}
+.ps-step:hover { background: rgba(124,111,255,.08); color: #fff; }
+.ps-step.active { background: rgba(124,111,255,.15); color: var(--primary); font-weight: 700; }
+.ps-step.done { color: var(--green); }
+.ps-step.done::after { content: ' ✓'; }
+.ps-num { font-size: 1.2rem; display: block; margin-bottom: 3px; }
+
+/* MAIN */
+.main { max-width: 900px; margin: 0 auto; padding: 40px 28px 80px; }
+
+/* SECTIONS */
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 38px 40px;
+  margin-bottom: 32px;
+  position: relative; overflow: hidden;
+}
+.section::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+.section.red-stripe::before  { background: linear-gradient(90deg, var(--red), var(--pink)); }
+.section.gold-stripe::before { background: linear-gradient(90deg, var(--gold), #e67e22); }
+.section.green-stripe::before{ background: linear-gradient(90deg, var(--green), var(--accent)); }
+.section.blue-stripe::before { background: linear-gradient(90deg, var(--blue), #a29bfe); }
+.section.pink-stripe::before { background: linear-gradient(90deg, var(--pink), #6c5ce7); }
+
+.sec-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--primary); font-weight: 700; margin-bottom: 6px; }
+.sec-title { font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.sec-sub   { color: var(--muted); font-size: .95rem; margin-bottom: 24px; }
+
+/* CALLOUTS */
+.callout {
+  border-radius: 10px; padding: 16px 20px; margin: 18px 0;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.callout.idea  { background: rgba(124,111,255,.1); border-left: 4px solid var(--primary); }
+.callout.warn  { background: rgba(255,107,107,.08); border-left: 4px solid var(--red); }
+.callout.tip   { background: rgba(0,229,211,.08);  border-left: 4px solid var(--accent); }
+.callout.gold  { background: rgba(245,197,66,.08); border-left: 4px solid var(--gold); }
+.callout .ico  { font-size: 1.4rem; flex-shrink: 0; margin-top: 1px; }
+.callout p, .callout div { font-size: .93rem; }
+.callout strong { color: #fff; }
+
+/* STEP BOX */
+.step-box {
+  counter-reset: steps;
+}
+.step {
+  display: flex; gap: 18px; margin-bottom: 22px; align-items: flex-start;
+}
+.step-num {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: .95rem; color: #fff;
+}
+.step-body h4 { font-size: 1rem; color: #fff; margin-bottom: 5px; }
+.step-body p  { font-size: .9rem; color: var(--text); }
+
+/* MATH BOX */
+.math-box {
+  background: rgba(124,111,255,.1);
+  border: 1px solid rgba(124,111,255,.3);
+  border-radius: 10px; padding: 20px 24px; margin: 16px 0;
+  overflow-x: auto;
+}
+.math-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--primary); font-weight: 700; margin-bottom: 10px; }
+.math-box.gold-math {
+  background: rgba(245,197,66,.08); border-color: rgba(245,197,66,.3);
+}
+.math-box.gold-math .math-label { color: var(--gold); }
+.math-box.green-math {
+  background: rgba(81,207,102,.08); border-color: rgba(81,207,102,.3);
+}
+.math-box.green-math .math-label { color: var(--green); }
+
+/* ANALOGY CARD */
+.analogy {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 22px 24px; margin: 18px 0;
+}
+.analogy-title { font-size: .8rem; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--gold); font-weight: 700; margin-bottom: 12px; }
+.analogy p { font-size: .92rem; color: var(--text); }
+
+/* INTERACTIVE PROBABILITY SLIDER */
+.slider-demo {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px; margin: 20px 0;
+}
+.slider-demo h4 { font-size: 1rem; color: #fff; margin-bottom: 14px; }
+.slider-row { display: flex; align-items: center; gap: 14px; margin: 10px 0; }
+.slider-row label { min-width: 160px; font-size: .88rem; color: var(--muted); }
+.slider-row input[type=range] {
+  flex: 1; accent-color: var(--primary);
+}
+.slider-row .val { min-width: 48px; text-align: right; font-weight: 700;
+  font-size: .92rem; color: var(--accent); }
+.result-panel {
+  margin-top: 16px; padding: 14px 18px;
+  background: rgba(0,0,0,.2); border-radius: 8px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.result-item { font-size: .88rem; }
+.result-item .rl { color: var(--muted); margin-bottom: 2px; font-size: .78rem; }
+.result-item .rv { font-size: 1.1rem; font-weight: 700; color: #fff; }
+.result-item .rv.good { color: var(--green); }
+.result-item .rv.bad  { color: var(--red); }
+
+/* BAR CHART */
+.bar-chart { display: flex; gap: 6px; align-items: flex-end; height: 120px; margin: 16px 0; }
+.bar-wrap { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+.bar { width: 100%; border-radius: 4px 4px 0 0; transition: height .4s ease; position: relative; min-height: 2px; }
+.bar-label { font-size: .72rem; color: var(--muted); margin-top: 5px; }
+.bar-val   { font-size: .72rem; color: #fff; margin-bottom: 3px; }
+.bar.pdata { background: linear-gradient(180deg, var(--accent), #00b3a4); }
+.bar.pmodel{ background: linear-gradient(180deg, var(--primary), #5a50d0); }
+.bar-legend { display: flex; gap: 16px; font-size: .8rem; margin-top: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+/* LOG DEMO */
+.log-demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 12px; margin: 16px 0; }
+.log-card {
+  border-radius: 10px; padding: 16px; text-align: center;
+  background: var(--card2); border: 1px solid var(--border);
+}
+.log-card .prob  { font-size: 1.3rem; font-weight: 800; color: #fff; }
+.log-card .logv  { font-size: 1.1rem; font-weight: 700; margin: 4px 0; }
+.log-card .desc  { font-size: .78rem; color: var(--muted); }
+.log-card.great  { border-color: rgba(81,207,102,.4);  background: rgba(81,207,102,.06); }
+.log-card.ok     { border-color: rgba(245,197,66,.4);  background: rgba(245,197,66,.06); }
+.log-card.bad    { border-color: rgba(255,107,107,.4); background: rgba(255,107,107,.06); }
+.log-card.fatal  { border-color: rgba(255,0,0,.5);     background: rgba(255,0,0,.08); }
+
+/* DECOMP VISUAL */
+.decomp {
+  display: flex; gap: 0; align-items: stretch; margin: 20px 0; flex-wrap: wrap;
+}
+.decomp-block {
+  flex: 1; min-width: 160px; padding: 18px 16px; text-align: center;
+  background: var(--card2); border: 1px solid var(--border);
+}
+.decomp-block:first-child { border-radius: 10px 0 0 10px; }
+.decomp-block:last-child  { border-radius: 0 10px 10px 0; }
+.decomp-op { display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: var(--muted); padding: 0 4px; font-weight: 700; background: var(--card2); }
+.decomp-block .db-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin-bottom: 8px; }
+.decomp-block .db-val   { font-size: 1rem; font-weight: 700; }
+.decomp-block.locked    { background: rgba(255,107,107,.06); border-color: rgba(255,107,107,.2); }
+.decomp-block.locked .db-val { color: var(--red); }
+.decomp-block.free      { background: rgba(124,111,255,.1); border-color: rgba(124,111,255,.3); }
+.decomp-block.free .db-val  { color: var(--primary); }
+.decomp-block.result    { background: rgba(0,229,211,.08); border-color: rgba(0,229,211,.3); }
+.decomp-block.result .db-val{ color: var(--accent); }
+
+/* COMPARISON TABLE */
+.cmp-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: .88rem; }
+.cmp-table th {
+  padding: 12px 14px; text-align: left;
+  border-bottom: 2px solid rgba(255,255,255,.1);
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .08em;
+}
+.cmp-table th.ar  { color: var(--primary); }
+.cmp-table th.vae { color: var(--pink); }
+.cmp-table th.prop{ color: var(--muted); }
+.cmp-table td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top;
+}
+.cmp-table tr:hover td { background: rgba(255,255,255,.02); }
+.cmp-table td:first-child { font-weight: 600; color: #fff; font-size: .9rem; }
+.cmp-table td.good { color: var(--green); }
+.cmp-table td.bad  { color: var(--red); }
+.cmp-table td.mid  { color: var(--gold); }
+
+/* VAE DIAGRAM */
+.vae-diagram {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; flex-wrap: wrap; margin: 24px 0;
+}
+.vae-box {
+  border-radius: 10px; padding: 16px 20px; text-align: center;
+  min-width: 120px;
+}
+.vae-box h5 { font-size: .85rem; margin-bottom: 4px; }
+.vae-box p  { font-size: .75rem; }
+.vae-box.enc { background: rgba(116,185,255,.12); border: 1px solid rgba(116,185,255,.4); }
+.vae-box.enc h5 { color: var(--blue); }
+.vae-box.lat { background: rgba(253,121,168,.12); border: 1px solid rgba(253,121,168,.4); }
+.vae-box.lat h5 { color: var(--pink); }
+.vae-box.dec { background: rgba(81,207,102,.12); border: 1px solid rgba(81,207,102,.4); }
+.vae-box.dec h5 { color: var(--green); }
+.vae-box.inp { background: rgba(245,197,66,.12); border: 1px solid rgba(245,197,66,.4); }
+.vae-box.inp h5 { color: var(--gold); }
+.vae-arrow { font-size: 1.5rem; color: var(--muted); padding: 0 10px; display: flex; align-items: center; }
+
+/* AR DIAGRAM */
+.ar-diagram {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 20px 0;
+}
+.ar-token {
+  border-radius: 8px; padding: 10px 14px; text-align: center;
+  background: rgba(124,111,255,.15); border: 1px solid rgba(124,111,255,.4);
+  font-size: .85rem; font-weight: 600; color: #c3b9ff;
+  transition: transform .15s;
+}
+.ar-token:hover { transform: translateY(-3px); }
+.ar-arrow { color: var(--muted); font-size: 1.2rem; }
+.ar-eq { color: var(--accent); font-weight: 800; font-size: 1.1rem; }
+
+/* TABS */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+.tab {
+  padding: 11px 22px; font-size: .9rem; font-weight: 600;
+  color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all .2s; margin-bottom: -1px;
+}
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab:hover  { color: #fff; }
+.tab-panel  { display: none; }
+.tab-panel.active { display: block; }
+
+/* ELBO BREAKDOWN */
+.elbo-row {
+  display: flex; gap: 12px; align-items: flex-start; margin: 14px 0;
+  padding: 14px 16px; border-radius: 10px; background: var(--card2);
+  border: 1px solid var(--border);
+}
+.elbo-icon { font-size: 1.4rem; flex-shrink: 0; }
+.elbo-body h5 { font-size: .92rem; color: #fff; margin-bottom: 4px; }
+.elbo-body p  { font-size: .86rem; color: var(--muted); }
+
+/* GENERAL */
+p   { margin-bottom: 10px; font-size: .94rem; }
+h3  { font-size: 1.1rem; color: #fff; margin: 20px 0 10px; }
+ul, ol { padding-left: 22px; margin: 8px 0 12px; }
+li  { margin-bottom: 5px; font-size: .9rem; }
+strong { color: #fff; }
+code {
+  background: rgba(255,255,255,.08); border-radius: 4px;
+  padding: 1px 6px; font-size: .85em; color: var(--accent);
+  font-family: 'Courier New', monospace;
+}
+.hl-primary { color: var(--primary); font-weight: 700; }
+.hl-accent  { color: var(--accent);  font-weight: 700; }
+.hl-gold    { color: var(--gold);    font-weight: 700; }
+.hl-red     { color: var(--red);     font-weight: 700; }
+.hl-green   { color: var(--green);   font-weight: 700; }
+.hl-pink    { color: var(--pink);    font-weight: 700; }
+.tag {
+  display: inline-block; border-radius: 6px; padding: 2px 10px;
+  font-size: .75rem; font-weight: 700; margin: 2px;
+}
+.separator { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+@media(max-width:600px){ .section{padding:24px 18px;} .result-panel{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>📉 Learning AR Models — A Real Explanation</h1>
+  <p>KL Divergence, Log-Likelihood, MLE — built from scratch with intuition first, math second. Plus a full comparison with VAE.</p>
+</div>
+
+<!-- PROGRESS STRIP -->
+<div class="progress-strip">
+  <div class="ps-step active" onclick="jumpTo('problem')"><span class="ps-num">🤔</span>The Problem</div>
+  <div class="ps-step" onclick="jumpTo('kl')"><span class="ps-num">📏</span>KL Divergence</div>
+  <div class="ps-step" onclick="jumpTo('log')"><span class="ps-num">📉</span>Log-Likelihood</div>
+  <div class="ps-step" onclick="jumpTo('decomp')"><span class="ps-num">🔑</span>The Key Trick</div>
+  <div class="ps-step" onclick="jumpTo('mle')"><span class="ps-num">🎯</span>MLE</div>
+  <div class="ps-step" onclick="jumpTo('vae')"><span class="ps-num">⚡</span>vs VAE</div>
+</div>
+
+<div class="main">
+
+<!-- =============================== PROBLEM =============================== -->
+<div class="section" id="problem">
+  <div class="sec-label">Step 0 — The Setup</div>
+  <div class="sec-title">What Are We Actually Trying to Do?</div>
+  <div class="sec-sub">Before any math, understand the goal</div>
+
+  <div class="analogy">
+    <div class="analogy-title">🌍 Real-World Analogy: The Nature Photographer</div>
+    <p>Imagine you're a nature photographer trying to understand <em>"the distribution of animals in a forest"</em>.
+    You can't observe every animal at every moment — you only have a finite number of photos (your training data).
+    Your goal is to build a <strong>mental model (M̂)</strong> that so accurately captures how animals appear in that forest
+    that if someone asked "what's the probability of seeing a fox at dawn?", your model would give a good answer.</p>
+    <p style="margin-top:8px;">In our case: <strong>forest → data domain</strong>, <strong>photos → training examples</strong>, <strong>mental model → P<sub>θ</sub></strong>, <strong>true animal distribution → P<sub>data</sub></strong>.</p>
+  </div>
+
+  <div class="step-box">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>There exists a true data distribution P<sub>data</sub></h4>
+        <p>This is the "ground truth" — the real probability distribution that generated all the data you see. <em>You never get to observe it directly.</em> For images, it's the probability of every possible image existing in the world.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>You have a model P<sub>θ</sub> with learnable parameters θ</h4>
+        <p>This is your approximation — a neural network or formula whose output is a probability distribution. By adjusting θ, you change the shape of P<sub>θ</sub> to hopefully match P<sub>data</sub>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>You want P<sub>θ</sub> ≈ P<sub>data</sub></h4>
+        <p>But you only have a <em>finite dataset D</em> sampled from P<sub>data</sub>. You can't see the full distribution. So the question becomes: <strong>how do you measure "closeness" between two distributions?</strong> That's where KL divergence comes in.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="ico">⚠️</span>
+    <div><strong>Why can't we just match P<sub>θ</sub> = P<sub>data</sub> exactly?</strong><br>
+    For MNIST: 784 binary pixels → 2<sup>784</sup> ≈ 10<sup>236</sup> possible images. Even with 10<sup>7</sup> training examples, each one is a single point in a space of 10<sup>236</sup> — like trying to understand the ocean by sampling 10 million drops. We need a model that <em>generalizes</em>.
+    </div>
+  </div>
+</div>
+
+<!-- =============================== KL DIVERGENCE =============================== -->
+<div class="section red-stripe" id="kl">
+  <div class="sec-label">Step 1 — Measuring Distance</div>
+  <div class="sec-title">KL Divergence</div>
+  <div class="sec-sub">How do you measure how "wrong" your model is?</div>
+
+  <div class="analogy">
+    <div class="analogy-title">📡 Analogy: The Compression / Messaging Cost</div>
+    <p>Imagine you're sending messages over a channel. The optimal encoding for a distribution P uses exactly <code>-log P(x)</code> bits per message.
+    If you <strong>design your code based on P<sub>θ</sub></strong> (your model), but the <strong>actual messages come from P<sub>data</sub></strong> (reality), you'll use more bits than necessary.
+    <strong>KL divergence = the extra bits you waste per message</strong> because you used the wrong distribution to design your code.</p>
+  </div>
+
+  <div class="math-box">
+    <div class="math-label">KL Divergence Formula</div>
+    \[
+    D_{\text{KL}}(P_{\text{data}} \| P_\theta) = \mathbb{E}_{x \sim P_{\text{data}}} \!\left[\log \frac{P_{\text{data}}(x)}{P_\theta(x)}\right] = \sum_x P_{\text{data}}(x) \cdot \log \frac{P_{\text{data}}(x)}{P_\theta(x)}
+    \]
+  </div>
+
+  <h3>Reading the Formula Piece by Piece</h3>
+
+  <div class="step-box">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>We sample x ~ P<sub>data</sub></h4>
+        <p>We're taking the expectation <em>under the real distribution</em> — we care about errors on data that actually occurs in the world.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>We compute log(P<sub>data</sub>(x) / P<sub>θ</sub>(x))</h4>
+        <p>This is the <em>log-ratio</em> of the real probability to what our model thinks. If our model is correct, P<sub>θ</sub>(x) = P<sub>data</sub>(x), so the ratio = 1 and log(1) = 0 — no waste!</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>We average over all x</h4>
+        <p>Weighted by how often each x actually occurs (P<sub>data</sub>(x)). Rare events count less; common events count more.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Three Critical Properties</h3>
+  <div class="callout tip">
+    <span class="ico">✅</span>
+    <div><strong>Property 1: D<sub>KL</sub> ≥ 0 always</strong><br>
+    KL divergence is always non-negative. It equals exactly 0 <em>if and only if</em> the two distributions are identical everywhere.
+    This is proven by Jensen's inequality: since log is concave, E[log(P/Q)] ≤ log(E[P/Q]) = log(1) = 0... wait, that's for -KL. KL itself uses log(P/Q) and P≥0 so the negative cannot be constructed without Q dominating P.</div>
+  </div>
+  <div class="callout warn">
+    <span class="ico">🔄</span>
+    <div><strong>Property 2: NOT symmetric — D<sub>KL</sub>(P‖Q) ≠ D<sub>KL</sub>(Q‖P)</strong><br>
+    <em>Example:</em> If P<sub>data</sub> says "cats definitely exist" (P=0.9) but your model says "cats are impossible" (P<sub>θ</sub>=0.001), you get a HUGE penalty from D(P<sub>data</sub>‖P<sub>θ</sub>). But D(P<sub>θ</sub>‖P<sub>data</sub>) would weight this event by P<sub>θ</sub> ≈ 0, nearly ignoring it. This asymmetry matters!
+    </div>
+  </div>
+  <div class="callout idea">
+    <span class="ico">💡</span>
+    <div><strong>Property 3: Zero probability = infinite penalty</strong><br>
+    If P<sub>θ</sub>(x) = 0 for any x that actually occurs (P<sub>data</sub>(x) > 0), then log(P<sub>data</sub>/0) = log(∞) = ∞ — the KL divergence blows up to infinity! This is why models must assign <em>non-zero probability</em> to everything in the support of P<sub>data</sub>. The log penalty enforces this.
+    </div>
+  </div>
+
+  <h3>🎮 Interactive: See KL Divergence Live</h3>
+  <p style="color:var(--muted);font-size:.87rem;">Drag the sliders to set your model's probabilities for 4 outcomes. Watch how KL divergence responds.</p>
+
+  <div class="slider-demo">
+    <h4>Scenario: 4 possible image categories</h4>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">📊 True Distribution P<sub>data</sub> (fixed)</p>
+        <div style="display:flex;gap:4px;align-items:flex-end;height:80px;margin-bottom:8px;" id="pdata-bars"></div>
+        <p style="font-size:.75rem;color:var(--muted);">Cat: 50%, Dog: 30%, Bird: 15%, Fish: 5%</p>
+      </div>
+      <div>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">🤖 Your Model P<sub>θ</sub> (drag sliders)</p>
+        <div style="display:flex;gap:4px;align-items:flex-end;height:80px;margin-bottom:8px;" id="pmodel-bars"></div>
+        <p style="font-size:.75rem;color:var(--accent);" id="model-sum-label">Probabilities sum to: 1.00</p>
+      </div>
+    </div>
+    <div id="sliders">
+      <div class="slider-row"><label>🐱 Cat (P<sub>data</sub>=0.50)</label><input type="range" min="1" max="99" value="50" oninput="updateKL()" id="s0"><span class="val" id="v0">0.50</span></div>
+      <div class="slider-row"><label>🐶 Dog (P<sub>data</sub>=0.30)</label><input type="range" min="1" max="99" value="30" oninput="updateKL()" id="s1"><span class="val" id="v1">0.30</span></div>
+      <div class="slider-row"><label>🐦 Bird (P<sub>data</sub>=0.15)</label><input type="range" min="1" max="99" value="15" oninput="updateKL()" id="s2"><span class="val" id="v2">0.15</span></div>
+      <div class="slider-row"><label>🐟 Fish (P<sub>data</sub>=0.05)</label><input type="range" min="1" max="99" value="5" oninput="updateKL()" id="s3"><span class="val" id="v3">0.05</span></div>
+    </div>
+    <div class="result-panel" id="kl-result">
+      <div class="result-item"><div class="rl">KL Divergence</div><div class="rv" id="kl-val">0.000 bits</div></div>
+      <div class="result-item"><div class="rl">Interpretation</div><div class="rv" id="kl-interp">Perfect match!</div></div>
+      <div class="result-item"><div class="rl">Model is...</div><div class="rv" id="kl-status">✅ Identical to reality</div></div>
+      <div class="result-item"><div class="rl">Worst penalty from</div><div class="rv" id="kl-worst">None</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- =============================== LOG-LIKELIHOOD =============================== -->
+<div class="section gold-stripe" id="log">
+  <div class="sec-label">Step 2 — What Your Model Needs to Learn</div>
+  <div class="sec-title">Log-Likelihood</div>
+  <div class="sec-sub">Why do we use log? What does it actually mean?</div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎰 Analogy: The Prediction Game</div>
+    <p>Every time a training example x appears, your model must <strong>"bet" on it</strong>. Your score is <code>log P<sub>θ</sub>(x)</code>.
+    If P<sub>θ</sub>(x) = 1.0 (perfect confidence, correct), you score 0 — best possible.
+    If P<sub>θ</sub>(x) = 0.5 (uncertain), you score log(0.5) = -0.69 — moderate penalty.
+    If P<sub>θ</sub>(x) = 0.001 (very wrong), you score log(0.001) = -6.9 — big penalty.
+    If P<sub>θ</sub>(x) = 0 (impossible according to model), you score -∞ — game over!</p>
+  </div>
+
+  <h3>The Log Penalty at Different Probability Values</h3>
+  <div class="log-demo">
+    <div class="log-card great">
+      <div class="prob">p = 0.99</div>
+      <div class="logv" style="color:var(--green)">log(0.99) = -0.01</div>
+      <div class="desc">Model is almost certain ✅ Tiny penalty</div>
+    </div>
+    <div class="log-card ok">
+      <div class="prob">p = 0.50</div>
+      <div class="logv" style="color:var(--gold)">log(0.50) = -0.69</div>
+      <div class="desc">Model is uncertain 🤔 Moderate penalty</div>
+    </div>
+    <div class="log-card bad">
+      <div class="prob">p = 0.10</div>
+      <div class="logv" style="color:var(--red)">log(0.10) = -2.30</div>
+      <div class="desc">Model mostly wrong ❌ Large penalty</div>
+    </div>
+    <div class="log-card fatal">
+      <div class="prob">p = 0.001</div>
+      <div class="logv" style="color:#ff4444">log(0.001) = -6.91</div>
+      <div class="desc">Model nearly rules it out 💀 Huge penalty</div>
+    </div>
+  </div>
+
+  <h3>Why log? Three reasons:</h3>
+  <div class="callout tip">
+    <span class="ico">1️⃣</span>
+    <div><strong>Products become sums (numerical stability)</strong><br>
+    The joint probability of n independent events is P(x₁)·P(x₂)·…·P(xₙ). With n=784 values each between 0 and 1, this product underflows to zero on any computer. Taking the log turns it into a sum: log(P(x₁)) + log(P(x₂)) + … which is perfectly computable.</div>
+  </div>
+  <div class="callout tip">
+    <span class="ico">2️⃣</span>
+    <div><strong>Heavy penalty for near-zero probabilities</strong><br>
+    The log function heavily penalizes small probabilities. This forces the model to assign non-zero probability to all data it might encounter. If P<sub>θ</sub>(x) → 0 for any real data point, log P<sub>θ</sub>(x) → -∞ — the model gets an infinite loss signal.</div>
+  </div>
+  <div class="callout tip">
+    <span class="ico">3️⃣</span>
+    <div><strong>Natural connection to information theory</strong><br>
+    -log₂ P(x) is exactly the number of bits needed to encode x under distribution P. Maximizing log-likelihood = minimizing the encoding length of your data = finding the most efficient compression.</div>
+  </div>
+
+  <div class="math-box gold-math">
+    <div class="math-label">Expected Log-Likelihood (what we want to maximize)</div>
+    \[
+    \mathcal{L}(\theta) = \mathbb{E}_{x \sim P_{\text{data}}}[\log P_\theta(x)]
+    = \sum_x P_{\text{data}}(x) \cdot \log P_\theta(x)
+    \]
+    <p style="font-size:.85rem;color:var(--muted);margin-top:12px;">
+    This asks: "On average, how much log-probability does my model assign to real data?" Maximize this = make your model think real data is likely.
+    </p>
+  </div>
+</div>
+
+<!-- =============================== THE KEY TRICK =============================== -->
+<div class="section" id="decomp">
+  <div class="sec-label">Step 3 — The Magic Bridge</div>
+  <div class="sec-title">The Key Algebraic Trick</div>
+  <div class="sec-sub">Why minimizing KL divergence = maximizing log-likelihood</div>
+
+  <p>This is the most important step. We want to minimize <span class="hl-red">D<sub>KL</sub>(P<sub>data</sub>‖P<sub>θ</sub>)</span> — but that's hard to compute since we don't know P<sub>data</sub>. Here's how we bypass that:</p>
+
+  <div class="math-box">
+    <div class="math-label">Step-by-step derivation</div>
+    \[
+    D_{\text{KL}}(P_{\text{data}} \| P_\theta)
+    = \mathbb{E}_{x \sim P_{\text{data}}}\!\left[\log \frac{P_{\text{data}}(x)}{P_\theta(x)}\right]
+    \]
+    \[
+    = \mathbb{E}_{x \sim P_{\text{data}}}[\log P_{\text{data}}(x)] \;-\; \mathbb{E}_{x \sim P_{\text{data}}}[\log P_\theta(x)]
+    \]
+    \[
+    = \underbrace{-H(P_{\text{data}})}_{\text{constant (doesn't depend on } \theta)} \;-\; \underbrace{\mathbb{E}_{x \sim P_{\text{data}}}[\log P_\theta(x)]}_{\text{expected log-likelihood}}
+    \]
+  </div>
+
+  <h3>Visualizing the Decomposition</h3>
+  <div class="decomp">
+    <div class="decomp-block result">
+      <div class="db-label">KL Divergence</div>
+      <div class="db-val">D<sub>KL</sub>(P<sub>data</sub>‖P<sub>θ</sub>)</div>
+    </div>
+    <div class="decomp-op">=</div>
+    <div class="decomp-block locked">
+      <div class="db-label">Entropy of data (FIXED 🔒)</div>
+      <div class="db-val">−H(P<sub>data</sub>)</div>
+    </div>
+    <div class="decomp-op">−</div>
+    <div class="decomp-block free">
+      <div class="db-label">Expected log-likelihood (FREE ✏️)</div>
+      <div class="db-val">𝔼[log P<sub>θ</sub>(x)]</div>
+    </div>
+  </div>
+
+  <div class="callout gold">
+    <span class="ico">🔑</span>
+    <div>
+      <strong>The key insight:</strong> −H(P<sub>data</sub>) is a <em>constant with respect to θ</em>.
+      It doesn't change no matter what parameters we choose! So when we ask "what θ minimizes KL?",
+      the constant term is irrelevant. We only need to maximize the part that depends on θ:
+      <div style="margin-top:10px;font-size:1rem;text-align:center;">
+        <strong style="color:var(--red)">min<sub>θ</sub> D<sub>KL</sub></strong>
+        &nbsp;=&nbsp;
+        <strong style="color:var(--accent)">max<sub>θ</sub> 𝔼[log P<sub>θ</sub>(x)]</strong>
+      </div>
+    </div>
+  </div>
+
+  <h3>Why is −H(P<sub>data</sub>) constant?</h3>
+  <p>H(P<sub>data</sub>) is the <strong>entropy of the real data distribution</strong> — a fixed property of the world, not of your model. Think of it as "how complex/random is real data?" — that's a fact about the universe, not something you can change by tweaking θ. You're stuck with it.</p>
+
+  <div class="callout warn">
+    <span class="ico">⚠️</span>
+    <div><strong>Consequence of this:</strong> We never know the true value of D<sub>KL</sub>! We can measure 𝔼[log P<sub>θ</sub>(x)], but since we don't know H(P<sub>data</sub>), we can't compute D<sub>KL</sub> itself. We only know we're minimizing it. This is why we can't say "our model achieves KL = 0.3" — we can only compare models relative to each other.</div>
+  </div>
+</div>
+
+<!-- =============================== MLE =============================== -->
+<div class="section green-stripe" id="mle">
+  <div class="sec-label">Step 4 — Making it Practical</div>
+  <div class="sec-title">Maximum Likelihood Estimation (MLE)</div>
+  <div class="sec-sub">We can't compute 𝔼[log Pθ(x)] exactly — so we approximate it</div>
+
+  <div class="analogy">
+    <div class="analogy-title">📊 Analogy: Polling vs. Census</div>
+    <p>To know 𝔼<sub>x ~ P<sub>data</sub></sub>[log P<sub>θ</sub>(x)], you'd need to average over <em>every possible x</em> weighted by P<sub>data</sub>(x) — this requires knowing P<sub>data</sub> exactly, which you don't have.
+    It's like wanting to know the average income in a country by interviewing every single citizen (impossible).
+    Instead, you poll a sample (your dataset D) and take the sample average — this is MLE!</p>
+  </div>
+
+  <div class="math-box green-math">
+    <div class="math-label">From expectation → sample average → MLE</div>
+    \[
+    \underbrace{\mathbb{E}_{x \sim P_{\text{data}}}[\log P_\theta(x)]}_{\text{true expected log-likelihood}} \;\approx\;
+    \underbrace{\frac{1}{|D|}\sum_{x \in D} \log P_\theta(x)}_{\text{empirical log-likelihood (what we actually compute)}}
+    \]
+    <p style="font-size:.85rem;color:var(--muted);margin-top:10px;">By the Law of Large Numbers: as |D| → ∞, the sample average converges to the true expectation.</p>
+  </div>
+
+  <div class="math-box green-math">
+    <div class="math-label">MLE Objective (what you optimize in practice)</div>
+    \[
+    \hat{\theta}_{\text{MLE}} = \arg\max_{\theta} \;\frac{1}{|D|}\sum_{x \in D} \log P_\theta(x)
+    \]
+    <p style="font-size:.85rem;color:var(--muted);margin-top:10px;">In practice you minimize the <strong>negative log-likelihood (NLL)</strong>: min<sub>θ</sub> −Σ log P<sub>θ</sub>(x). Gradient descent minimizes, so flip the sign.</p>
+  </div>
+
+  <h3>The Full Chain of Logic (summary)</h3>
+  <div class="step-box">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Goal: P<sub>θ</sub> ≈ P<sub>data</sub></h4>
+        <p>We want our model to match the true data distribution.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Measure closeness with KL divergence</h4>
+        <p>D<sub>KL</sub>(P<sub>data</sub>‖P<sub>θ</sub>) = 0 means perfect. The smaller the better.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Algebraic trick: KL = constant − 𝔼[log P<sub>θ</sub>]</h4>
+        <p>Since the constant doesn't depend on θ, minimizing KL ≡ maximizing expected log-likelihood.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Approximate expectation with dataset average</h4>
+        <p>Replace 𝔼[log P<sub>θ</sub>] with (1/|D|)Σ log P<sub>θ</sub>(x). Now it's computable!</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>Result: MLE — maximize log-likelihood over training data</h4>
+        <p>This is exactly what neural network training does when you minimize cross-entropy loss. They're the same thing!</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout idea">
+    <span class="ico">💡</span>
+    <div><strong>Cross-entropy loss = negative log-likelihood!</strong><br>
+    When you train a classifier with cross-entropy loss, you're literally doing MLE. You're maximizing the log-probability your model assigns to the correct class label.
+    For autoregressive models: each step predicts the next token → the cross-entropy loss at each step is exactly -log P<sub>θ</sub>(x<sub>i</sub> | x<sub>&lt;i</sub>).
+    </div>
+  </div>
+</div>
+
+<!-- =============================== VAE COMPARISON =============================== -->
+<div class="section pink-stripe" id="vae">
+  <div class="sec-label">Step 5 — The Big Picture</div>
+  <div class="sec-title">Autoregressive Models vs. VAE</div>
+  <div class="sec-sub">Two completely different approaches to generative modeling — same goal, very different philosophy</div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('overview')">🏛️ Philosophy</div>
+    <div class="tab" onclick="switchTab('math')">📐 Math</div>
+    <div class="tab" onclick="switchTab('training')">🏋️ Training</div>
+    <div class="tab" onclick="switchTab('when')">🤔 When to Use</div>
+  </div>
+
+  <!-- PHILOSOPHY TAB -->
+  <div class="tab-panel active" id="tab-overview">
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
+      <!-- AR -->
+      <div style="background:rgba(124,111,255,.08);border:1px solid rgba(124,111,255,.3);border-radius:12px;padding:20px;">
+        <h3 style="color:var(--primary);margin-top:0">🔄 Autoregressive Model</h3>
+        <p style="font-size:.88rem;"><strong>Philosophy:</strong> "I don't need a latent code. I'll just learn to predict each piece of data given everything that came before it."</p>
+        <div class="ar-diagram" style="margin:14px 0;">
+          <div class="ar-token">x₁</div>
+          <div class="ar-arrow">→</div>
+          <div class="ar-token">x₂|x₁</div>
+          <div class="ar-arrow">→</div>
+          <div class="ar-token">x₃|x₁,x₂</div>
+          <div class="ar-arrow">→ …</div>
+        </div>
+        <ul style="font-size:.84rem;">
+          <li>Direct density estimation</li>
+          <li>Exact log-likelihood ✅</li>
+          <li>No latent space</li>
+          <li>Sequential generation</li>
+        </ul>
+      </div>
+      <!-- VAE -->
+      <div style="background:rgba(253,121,168,.08);border:1px solid rgba(253,121,168,.3);border-radius:12px;padding:20px;">
+        <h3 style="color:var(--pink);margin-top:0">🧬 Variational Autoencoder (VAE)</h3>
+        <p style="font-size:.88rem;"><strong>Philosophy:</strong> "Data has a compact underlying structure. Encode it into a latent space z, then decode from z. Learn both simultaneously."</p>
+        <div class="vae-diagram" style="margin:14px 0;gap:0;justify-content:flex-start;flex-wrap:nowrap;">
+          <div class="vae-box inp" style="min-width:70px;padding:10px;"><h5>x</h5><p>input</p></div>
+          <div class="vae-arrow">→</div>
+          <div class="vae-box enc" style="min-width:90px;padding:10px;"><h5>Encoder</h5><p>q(z|x)</p></div>
+          <div class="vae-arrow">→</div>
+          <div class="vae-box lat" style="min-width:70px;padding:10px;"><h5>z ~ N(μ,σ)</h5><p>latent</p></div>
+          <div class="vae-arrow">→</div>
+          <div class="vae-box dec" style="min-width:90px;padding:10px;"><h5>Decoder</h5><p>p(x|z)</p></div>
+        </div>
+        <ul style="font-size:.84rem;">
+          <li>Latent variable model</li>
+          <li>Approximate likelihood (ELBO) ⚠️</li>
+          <li>Meaningful latent space 🌟</li>
+          <li>Parallel generation ✅</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- MATH TAB -->
+  <div class="tab-panel" id="tab-math">
+    <h3>Autoregressive: Exact Likelihood</h3>
+    <div class="math-box">
+      <div class="math-label">AR Objective (exact)</div>
+      \[
+      \log p_\theta(x) = \sum_{i=1}^{n} \log p_\theta(x_i \mid x_{<i})
+      \]
+      <p style="font-size:.85rem;color:var(--muted);margin-top:10px;">Every term is directly computable. No approximation. Training = maximize this sum (MLE).</p>
+    </div>
+
+    <hr class="separator">
+
+    <h3>VAE: Evidence Lower BOund (ELBO)</h3>
+    <div class="callout warn">
+      <span class="ico">⚠️</span>
+      <div><strong>The core problem with VAEs:</strong> The true likelihood involves integrating over all possible latent codes z:<br>
+      <span style="font-family:monospace;font-size:.92rem;">p<sub>θ</sub>(x) = ∫ p<sub>θ</sub>(x|z) p(z) dz</span><br>
+      This integral is <em>intractable</em> — you can't compute it for high-dimensional z. So VAEs optimize a lower bound instead.
+      </div>
+    </div>
+    <div class="math-box" style="background:rgba(253,121,168,.08);border-color:rgba(253,121,168,.3);">
+      <div class="math-label" style="color:var(--pink);">VAE Objective: ELBO (lower bound on log-likelihood)</div>
+      \[
+      \log p_\theta(x) \;\geq\; \underbrace{\mathbb{E}_{z \sim q_\phi(z|x)}\!\big[\log p_\theta(x \mid z)\big]}_{\text{reconstruction term}} \;-\; \underbrace{D_{\text{KL}}\big(q_\phi(z|x) \;\|\; p(z)\big)}_{\text{regularization term}}
+      \]
+    </div>
+    <div class="elbo-row">
+      <div class="elbo-icon">🔁</div>
+      <div class="elbo-body">
+        <h5>Reconstruction term: 𝔼[log p<sub>θ</sub>(x|z)]</h5>
+        <p>"Given a sampled latent code z, how well does the decoder reconstruct the original x?" This is like the standard log-likelihood, but conditioned on z. Maximizing this makes the decoder output look like the input.</p>
+      </div>
+    </div>
+    <div class="elbo-row">
+      <div class="elbo-icon">🎯</div>
+      <div class="elbo-body">
+        <h5>Regularization term: D<sub>KL</sub>(q<sub>φ</sub>(z|x) ‖ p(z))</h5>
+        <p>"How far is the encoder's output distribution from the prior p(z) = N(0,I)?" Minimizing this KL keeps the latent space organized and prevents it from collapsing. It forces the latent codes to form a nice, smooth Gaussian space you can sample from.</p>
+      </div>
+    </div>
+    <div class="callout idea">
+      <span class="ico">💡</span>
+      <div><strong>Wait — KL appears INSIDE the VAE too!</strong><br>
+      In AR models: we use KL to motivate the training objective, then simplify it away into MLE.<br>
+      In VAEs: KL appears explicitly as a regularization term in the ELBO — you compute it and backpropagate through it every training step. Different roles!
+      </div>
+    </div>
+  </div>
+
+  <!-- TRAINING TAB -->
+  <div class="tab-panel" id="tab-training">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <h3 style="color:var(--primary)">🔄 AR Training</h3>
+        <div class="step-box">
+          <div class="step"><div class="step-num" style="background:var(--primary)">1</div>
+            <div class="step-body"><h4>Forward pass</h4><p>Feed x into model, compute all conditionals p(xᵢ|x&lt;ᵢ) in one pass (with masking).</p></div></div>
+          <div class="step"><div class="step-num" style="background:var(--primary)">2</div>
+            <div class="step-body"><h4>Compute loss</h4><p>NLL = -Σ log p(xᵢ|x&lt;ᵢ). Exact. No approximation.</p></div></div>
+          <div class="step"><div class="step-num" style="background:var(--primary)">3</div>
+            <div class="step-body"><h4>Backprop &amp; update θ</h4><p>Standard gradient descent on exact NLL. Simple and clean!</p></div></div>
+        </div>
+        <div class="callout tip"><span class="ico">✅</span><div>Training is <strong>stable and exact</strong>. One network, one loss.</div></div>
+      </div>
+      <div>
+        <h3 style="color:var(--pink)">🧬 VAE Training</h3>
+        <div class="step-box">
+          <div class="step"><div class="step-num" style="background:var(--pink);color:#000">1</div>
+            <div class="step-body"><h4>Encode x → (μ, σ)</h4><p>Encoder outputs mean and variance of the approximate posterior q(z|x).</p></div></div>
+          <div class="step"><div class="step-num" style="background:var(--pink);color:#000">2</div>
+            <div class="step-body"><h4>Sample z (reparameterization trick)</h4><p>z = μ + σ·ε where ε ~ N(0,I). This makes sampling differentiable!</p></div></div>
+          <div class="step"><div class="step-num" style="background:var(--pink);color:#000">3</div>
+            <div class="step-body"><h4>Decode z → x̂</h4><p>Decoder reconstructs input from latent code.</p></div></div>
+          <div class="step"><div class="step-num" style="background:var(--pink);color:#000">4</div>
+            <div class="step-body"><h4>Compute ELBO loss</h4><p>Reconstruction loss + KL penalty. Backprop through both encoder and decoder.</p></div></div>
+        </div>
+        <div class="callout warn"><span class="ico">⚠️</span><div>Training requires balancing <strong>two loss terms</strong>. Can suffer from posterior collapse (KL term dominates → encoder becomes useless).</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WHEN TO USE TAB -->
+  <div class="tab-panel" id="tab-when">
+    <p>Here are the practical trade-offs to help you choose:</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:rgba(124,111,255,.08);border:1px solid rgba(124,111,255,.25);border-radius:10px;padding:16px;">
+        <h3 style="color:var(--primary);margin-top:0">Use AR when you need:</h3>
+        <ul>
+          <li>🎯 <strong>Exact likelihood</strong> — e.g., comparing models, data compression</li>
+          <li>📝 <strong>Text generation</strong> — natural sequential structure</li>
+          <li>📊 <strong>Density estimation</strong> — anomaly detection, hypothesis testing</li>
+          <li>🔍 <strong>Interpretability</strong> — each conditional is explicit</li>
+          <li>✅ <strong>Stable training</strong> — one simple loss function</li>
+        </ul>
+      </div>
+      <div style="background:rgba(253,121,168,.08);border:1px solid rgba(253,121,168,.25);border-radius:10px;padding:16px;">
+        <h3 style="color:var(--pink);margin-top:0">Use VAE when you need:</h3>
+        <ul>
+          <li>🌌 <strong>Latent space navigation</strong> — e.g., interpolate between faces</li>
+          <li>⚡ <strong>Fast parallel generation</strong> (single decoder forward pass)</li>
+          <li>🎨 <strong>Disentangled representations</strong> — control independent factors</li>
+          <li>🔄 <strong>Image-to-image tasks</strong> — where conditioning on z matters</li>
+          <li>🗜️ <strong>Compression / representation learning</strong></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <hr class="separator">
+  <h3>Side-by-Side Summary Table</h3>
+  <table class="cmp-table">
+    <tr>
+      <th class="prop">Property</th>
+      <th class="ar">🔄 Autoregressive</th>
+      <th class="vae">🧬 VAE</th>
+    </tr>
+    <tr>
+      <td>Likelihood</td>
+      <td class="good">✅ Exact (tractable)</td>
+      <td class="mid">⚠️ Approximate (ELBO lower bound)</td>
+    </tr>
+    <tr>
+      <td>Latent space</td>
+      <td class="bad">❌ None — no compact representation</td>
+      <td class="good">✅ Continuous latent z ∈ ℝᵈ</td>
+    </tr>
+    <tr>
+      <td>Generation speed</td>
+      <td class="bad">❌ Sequential (slow) — one token at a time</td>
+      <td class="good">✅ Parallel — one decoder forward pass</td>
+    </tr>
+    <tr>
+      <td>Training speed</td>
+      <td class="good">✅ Parallel (teacher forcing)</td>
+      <td class="good">✅ Parallel (both encoder and decoder)</td>
+    </tr>
+    <tr>
+      <td>Training stability</td>
+      <td class="good">✅ Stable — single exact loss</td>
+      <td class="mid">⚠️ Can have posterior collapse</td>
+    </tr>
+    <tr>
+      <td>Training objective</td>
+      <td>Maximize log-likelihood (MLE / NLL)</td>
+      <td>Maximize ELBO = recon. + KL reg.</td>
+    </tr>
+    <tr>
+      <td>KL divergence role</td>
+      <td>Motivates MLE (then simplified away)</td>
+      <td>Explicit regularizer term in ELBO</td>
+    </tr>
+    <tr>
+      <td>Can interpolate between samples?</td>
+      <td class="bad">❌ No (no latent space)</td>
+      <td class="good">✅ Yes — interpolate in z-space</td>
+    </tr>
+    <tr>
+      <td>Image quality (historically)</td>
+      <td class="good">✅ Sharp, detailed (PixelCNN etc.)</td>
+      <td class="mid">⚠️ Often blurry (MSE reconstruction)</td>
+    </tr>
+    <tr>
+      <td>Best known examples</td>
+      <td>GPT, PixelRNN, PixelCNN, WaveNet</td>
+      <td>DALL-E (v1), β-VAE, VQ-VAE</td>
+    </tr>
+    <tr>
+      <td>Ordering requirement</td>
+      <td class="bad">❌ Needs a defined sequence order</td>
+      <td class="good">✅ Order-agnostic</td>
+    </tr>
+    <tr>
+      <td>Anomaly detection</td>
+      <td class="good">✅ Directly: low p(x) = anomaly</td>
+      <td class="mid">⚠️ Indirect via reconstruction error</td>
+    </tr>
+  </table>
+
+  <div class="callout gold">
+    <span class="ico">🏆</span>
+    <div>
+      <strong>The big picture:</strong><br>
+      Both AR models and VAEs are <em>generative models</em> trying to learn P<sub>data</sub>. They differ in HOW:
+      <ul style="margin-top:8px;">
+        <li><strong>AR models</strong> say: "I'll learn the full joint distribution by factorizing it into a chain of conditionals. No shortcuts, no approximations. Pure MLE."</li>
+        <li><strong>VAEs</strong> say: "I'll introduce a latent variable z that captures the essence of the data. I can't compute the exact likelihood but I'll optimize a lower bound. I get a useful latent space in return."</li>
+      </ul>
+      Modern approaches often <em>combine both ideas</em> — e.g., VQ-VAE uses discrete latent codes, then trains an AR model (like PixelCNN) in the latent space!
+    </div>
+  </div>
+</div>
+
+<!-- =============================== TL;DR =============================== -->
+<div class="section blue-stripe">
+  <div class="sec-label">Final Boss — Quick Recall</div>
+  <div class="sec-title">🧠 TL;DR — The Whole Story in 5 Lines</div>
+
+  <div class="step-box" style="margin-top:16px;">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>We want P<sub>θ</sub> ≈ P<sub>data</sub></h4>
+        <p>Measure "how wrong" using <strong>KL divergence</strong> D(P<sub>data</sub>‖P<sub>θ</sub>).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>KL = constant − 𝔼[log P<sub>θ</sub>(x)]</h4>
+        <p>The constant (entropy of P<sub>data</sub>) doesn't depend on θ, so we can ignore it.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Minimize KL ≡ Maximize 𝔼[log P<sub>θ</sub>(x)]</h4>
+        <p>We've converted a hard problem into a clean optimization objective.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Approximate expectation with training data → MLE</h4>
+        <p>max (1/|D|) Σ log P<sub>θ</sub>(x). This is what gradient descent actually does!</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>AR models do this exactly; VAEs approximate it via ELBO</h4>
+        <p>AR = exact + sequential. VAE = approximate + latent space + parallel generation.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ---- TABS ----
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ---- PROGRESS STRIP SCROLL ----
+function jumpTo(id) {
+  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.ps-step').forEach(s => s.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ---- KL SLIDER DEMO ----
+const pdata = [0.50, 0.30, 0.15, 0.05];
+const labels = ['🐱','🐶','🐦','🐟'];
+const colors = ['#7c6fff','#51cf66','#f5c542','#fd79a8'];
+
+function buildBars(containerId, values, colorFn) {
+  const el = document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML = '';
+  el.style.cssText = 'display:flex;gap:6px;align-items:flex-end;height:80px;';
+  const maxV = Math.max(...values);
+  values.forEach((v, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;';
+    const bar = document.createElement('div');
+    const h = Math.max(2, Math.round((v / 0.6) * 70));
+    bar.style.cssText = `width:100%;height:${h}px;border-radius:4px 4px 0 0;background:${colorFn(i)};transition:height .3s;`;
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:.65rem;color:#888;margin-top:3px;';
+    lbl.textContent = labels[i];
+    wrap.appendChild(bar);
+    wrap.appendChild(lbl);
+    el.appendChild(wrap);
+  });
+}
+
+function updateKL() {
+  const rawVals = [0,1,2,3].map(i => parseFloat(document.getElementById('s'+i).value));
+  const total = rawVals.reduce((a,b) => a+b, 0);
+  const pmodel = rawVals.map(v => v / total);
+
+  // Update labels
+  [0,1,2,3].forEach(i => {
+    document.getElementById('v'+i).textContent = pmodel[i].toFixed(2);
+  });
+
+  // Sum label
+  const sumLabel = document.getElementById('model-sum-label');
+  sumLabel.textContent = `(Normalized to sum = 1.00)`;
+
+  // Compute KL
+  let kl = 0;
+  let worstItem = '';
+  let worstPenalty = -Infinity;
+  pdata.forEach((p, i) => {
+    if(p > 0 && pmodel[i] > 0) {
+      const contribution = p * Math.log2(p / pmodel[i]);
+      kl += contribution;
+      if(contribution > worstPenalty) {
+        worstPenalty = contribution;
+        worstItem = labels[i];
+      }
+    } else if(p > 0 && pmodel[i] <= 0) {
+      kl = Infinity;
+      worstItem = labels[i] + ' (p=0!)';
+    }
+  });
+
+  // Update bars
+  buildBars('pdata-bars', pdata, i => '#00e5d3');
+  buildBars('pmodel-bars', pmodel, i => colors[i]);
+
+  // Update results
+  const klEl = document.getElementById('kl-val');
+  const interpEl = document.getElementById('kl-interp');
+  const statusEl = document.getElementById('kl-status');
+  const worstEl = document.getElementById('kl-worst');
+
+  if(kl === Infinity) {
+    klEl.textContent = '∞ bits';
+    klEl.className = 'rv bad';
+    interpEl.textContent = 'Catastrophic!';
+    interpEl.className = 'rv bad';
+    statusEl.textContent = '💀 Model assigns p=0 to real data';
+    statusEl.className = 'rv bad';
+  } else {
+    klEl.textContent = kl.toFixed(4) + ' bits';
+    const isGood = kl < 0.01;
+    const isMid  = kl < 0.1;
+    klEl.className = 'rv ' + (isGood ? 'good' : kl > 0.3 ? 'bad' : '');
+    interpEl.textContent = kl < 0.001 ? 'Perfect match!' : kl < 0.05 ? 'Very close' : kl < 0.2 ? 'Moderate error' : 'Large mismatch';
+    interpEl.className = 'rv ' + (kl < 0.05 ? 'good' : kl > 0.2 ? 'bad' : '');
+    statusEl.textContent = kl < 0.001 ? '✅ Identical to reality' : kl < 0.05 ? '🟡 Close approximation' : '❌ Off from reality';
+    statusEl.className = 'rv ' + (kl < 0.05 ? 'good' : kl > 0.2 ? 'bad' : '');
+    worstEl.textContent = kl < 0.001 ? 'None' : worstItem + ' (Δ' + worstPenalty.toFixed(3) + ' bits)';
+    worstEl.className = 'rv';
+  }
+}
+
+// Initial render
+buildBars('pdata-bars', pdata, i => '#00e5d3');
+updateKL();
+
+// MathJax config
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)'],['$','$']], displayMath: [['\\[','\\]'],['$$','$$']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+};
+</script>
+</body>
+</html>
