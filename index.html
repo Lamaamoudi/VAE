@@ -44,7 +44,7 @@
             font-size: 1.1rem;
         }
 
-        /* Tabs Navigation Styling */
+        /* Tabs Navigation Styling - Fixed for multi-line responsiveness */
         .tab-navigation {
             display: flex;
             gap: 1rem;
@@ -52,6 +52,7 @@
             width: 90%;
             max-width: 900px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         .tab-btn {
@@ -205,7 +206,6 @@
         <button class="tab-btn" onclick="switchTab('autoregressive-content', this)">Autoregressive Models</button>
         <button class="tab-btn" onclick="switchTab('Normalizing_Flow-content', this)">Normalizing Flow</button>
         <button class="tab-btn" onclick="switchTab('GANs', this)">Generative Adversarial Networks (GANs)</button>
-        
     </div>
 
     <div id="vae-content" class="tab-content active">
@@ -271,15 +271,15 @@
                 <h2>Normalizing Flows Interactive Lecture</h2>
                 <p>An interactive guide to mapping simple distributions to complex densities using sequences of invertible transformations.</p>
             </a>          
-         
         </div>
     </div>
+
     <div id="GANs" class="tab-content">
         <div class="container">
             <a href="GAN_Lecture_Fixed.html" class="card">
-                <h2> GANs Models Interactive Lecture</h2>
-                <p>An interactive lecture exploring.</p>           
-        </div>
+                <h2>GANs Models Interactive Lecture</h2>
+                <p>An interactive lecture exploring adversarial training loops, generators, and discriminators.</p>           
+            </a> </div>
     </div>
 
     <footer>
