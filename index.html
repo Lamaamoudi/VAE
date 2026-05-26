@@ -52,6 +52,7 @@
             width: 90%;
             max-width: 900px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         .tab-btn {
@@ -205,7 +206,6 @@
         <button class="tab-btn" onclick="switchTab('autoregressive-content', this)">Autoregressive Models</button>
         <button class="tab-btn" onclick="switchTab('Normalizing_Flow-content', this)">Normalizing Flow</button>
         <button class="tab-btn" onclick="switchTab('GANs', this)">Generative Adversarial Networks (GANs)</button>
-        
     </div>
 
     <div id="vae-content" class="tab-content active">
@@ -261,7 +261,7 @@
             <a href="Day5_KL_MLE_DeepDive.html" class="card">
                 <h2>Autoregressive Models: more details on the math part</h2>
                 <p>KL Divergence, Log-Likelihood, MLE — built from scratch with intuition first, math second. Plus a full comparison with VAE.</p>
-            </a>            
+            </a>                    
         </div>
     </div>
 
@@ -271,14 +271,15 @@
                 <h2>Normalizing Flows Interactive Lecture</h2>
                 <p>An interactive guide to mapping simple distributions to complex densities using sequences of invertible transformations.</p>
             </a>          
-         
         </div>
     </div>
+
     <div id="GANs" class="tab-content">
         <div class="container">
             <a href="GAN_Lecture_Fixed.html" class="card">
-                <h2> GANs Models Interactive Lecture</h2>
-                <p>An interactive lecture exploring.</p>           
+                <h2>GANs Models Interactive Lecture</h2>
+                <p>An interactive lecture exploring adversarial training loops, generators, and discriminators.</p>            
+            </a>
         </div>
     </div>
 
@@ -295,7 +296,7 @@
             buttons.forEach(btn => btn.classList.remove('active'));
 
             document.getElementById(tabId).classList.add('active');
-            buttonElement.classList.add('active');
+            buttonElement.className.add('active');
         } 
     </script>
 
