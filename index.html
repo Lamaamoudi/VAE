@@ -1,3 +1,18 @@
+<div id="GANs" class="tab-content">
+    <div class="container">
+        <a href="GAN_Lecture_Fixed.html" class="card">
+            <h2>GANs Models Interactive Lecture</h2>
+            <p>An interactive lecture exploring adversarial training loops, generators, and discriminators.</p>           
+        </a> </div> </div> ```
+Because of the trailing `</div>` nested on the same line as your closed link tag (`</a> </div>`), it closes your layout container perfectly, **but it leaves your indentations deceptively misaligned**. If you copy-paste this directly into certain strict code frameworks or try adding a second card below it later, it will break your layout alignment entirely.
+
+---
+
+### The Cleaned, Fully Formatted Code 🟢
+
+Below is the identical, fully formatted code with clean indentation spacing for all tabs, elements, and layouts. 
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -261,7 +276,7 @@
             <a href="Day5_KL_MLE_DeepDive.html" class="card">
                 <h2>Autoregressive Models: more details on the math part</h2>
                 <p>KL Divergence, Log-Likelihood, MLE — built from scratch with intuition first, math second. Plus a full comparison with VAE.</p>
-            </a>            
+            </a>                    
         </div>
     </div>
 
@@ -278,8 +293,9 @@
         <div class="container">
             <a href="GAN_Lecture_Fixed.html" class="card">
                 <h2>GANs Models Interactive Lecture</h2>
-                <p>An interactive lecture exploring adversarial training loops, generators, and discriminators.</p>           
-            </a> </div>
+                <p>An interactive lecture exploring adversarial training loops, generators, and discriminators.</p>            
+            </a>
+        </div>
     </div>
 
     <footer>
