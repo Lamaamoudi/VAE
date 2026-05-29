@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RNNs & Transformers — Interactive Study Guide</title>
+
+<!-- MathJax config BEFORE the script -->
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      tags: 'ams'
+    },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #252840;
+    --accent: #7c6af7;
+    --accent2: #f7c26a;
+    --accent3: #6af7b8;
+    --text: #e8eaf6;
+    --text-dim: #9ea3c0;
+    --border: #2e3158;
+    --danger: #f76a6a;
+    --success: #6af7b8;
+    --rnn-color: #7c6af7;
+    --tr-color: #f7c26a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { font-size: 1.8rem; font-weight: 800; }
+  header h1 span.rnn { color: var(--rnn-color); }
+  header h1 span.amp { color: var(--text-dim); }
+  header h1 span.tr { color: var(--tr-color); }
+  header p { color: var(--text-dim); margin-top: .4rem; font-size: .9rem; }
+
+  /* ─── NAV TABS ─── */
+  .nav-tabs {
+    display: flex;
+    gap: .5rem;
+    padding: 1.2rem 2rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: .5rem 1.2rem;
+    border-radius: 2rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: .85rem;
+    font-weight: 600;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tab-btn.tr-btn.active { background: var(--tr-color); border-color: var(--tr-color); color: #111; }
+
+  /* ─── SECTIONS ─── */
+  .section { display: none; padding: 2rem; max-width: 1000px; margin: 0 auto; }
+  .section.active { display: block; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card h2 { font-size: 1.2rem; margin-bottom: 1rem; display: flex; align-items: center; gap: .6rem; }
+  .card h3 { font-size: 1rem; color: var(--accent2); margin: 1rem 0 .5rem; }
+  .card p, .card li { color: var(--text-dim); font-size: .92rem; margin-bottom: .5rem; }
+  .card ul { padding-left: 1.4rem; }
+  .card ul li { margin-bottom: .4rem; }
+
+  .tag {
+    display: inline-block;
+    padding: .2rem .7rem;
+    border-radius: 1rem;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+  .tag-rnn { background: rgba(124,106,247,.2); color: var(--rnn-color); }
+  .tag-tr { background: rgba(247,194,106,.2); color: var(--tr-color); }
+  .tag-key { background: rgba(106,247,184,.2); color: var(--accent3); }
+
+  /* ─── EQUATION BOX ─── */
+  .eq-box {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem 1.4rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+  .eq-box.tr { border-left-color: var(--tr-color); }
+  .eq-label { font-size: .75rem; color: var(--text-dim); margin-bottom: .4rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ─── COMPARISON TABLE ─── */
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { background: var(--surface2); color: var(--accent2); padding: .7rem 1rem; text-align: left; }
+  td { padding: .65rem 1rem; border-top: 1px solid var(--border); color: var(--text-dim); }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ─── PROS/CONS GRID ─── */
+  .pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .pro, .con { padding: 1rem; border-radius: 8px; }
+  .pro { background: rgba(106,247,184,.07); border: 1px solid rgba(106,247,184,.2); }
+  .con { background: rgba(247,106,106,.07); border: 1px solid rgba(247,106,106,.2); }
+  .pro h4 { color: var(--success); margin-bottom: .6rem; }
+  .con h4 { color: var(--danger); margin-bottom: .6rem; }
+  .pro li, .con li { font-size: .88rem; color: var(--text-dim); margin-bottom: .3rem; }
+
+  /* ─── INTERACTIVE ATTENTION VIZ ─── */
+  .attn-demo {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 1.4rem;
+    margin: 1rem 0;
+  }
+  .attn-demo h4 { color: var(--accent3); margin-bottom: 1rem; font-size: .95rem; }
+  .word-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .8rem; }
+  .word-token {
+    padding: .4rem .9rem;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    cursor: pointer;
+    font-size: .88rem;
+    transition: all .2s;
+    user-select: none;
+  }
+  .word-token:hover { border-color: var(--accent); }
+  .word-token.selected { border-color: var(--accent); background: rgba(124,106,247,.2); }
+  .attn-weights { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .attn-bar-wrap { display: flex; flex-direction: column; align-items: center; gap: .3rem; }
+  .attn-bar-outer { width: 48px; height: 80px; background: var(--surface); border-radius: 6px; position: relative; overflow: hidden; }
+  .attn-bar-inner {
+    position: absolute; bottom: 0; width: 100%;
+    background: linear-gradient(to top, var(--accent), rgba(124,106,247,.4));
+    transition: height .5s ease; border-radius: 6px;
+  }
+  .attn-bar-label { font-size: .72rem; color: var(--text-dim); }
+  .attn-bar-pct { font-size: .72rem; color: var(--accent); font-weight: 700; }
+
+  /* ─── RNN UNROLL VIZ ─── */
+  .rnn-cells { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: .5rem 0; }
+  .rnn-cell-wrap { display: flex; flex-direction: column; align-items: center; }
+  .rnn-cell {
+    width: 70px; height: 50px;
+    background: linear-gradient(135deg, rgba(124,106,247,.3), rgba(124,106,247,.1));
+    border: 1px solid var(--rnn-color);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 700; color: var(--rnn-color);
+    position: relative;
+  }
+  .rnn-arrow { color: var(--text-dim); font-size: 1.2rem; padding: 0 .2rem; align-self: center; margin-top: -14px; }
+  .rnn-label { font-size: .7rem; color: var(--text-dim); margin-top: .4rem; }
+  .rnn-input { font-size: .68rem; color: var(--accent3); margin-top: .3rem; }
+
+  /* ─── STEP-BY-STEP ACCORDION ─── */
+  .steps { margin: 1rem 0; }
+  .step {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: .5rem;
+    overflow: hidden;
+  }
+  .step-header {
+    padding: .8rem 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    background: var(--surface2);
+    transition: background .2s;
+    user-select: none;
+  }
+  .step-header:hover { background: rgba(124,106,247,.1); }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .78rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .step-num.tr { background: var(--tr-color); color: #111; }
+  .step-title { font-size: .9rem; font-weight: 600; }
+  .step-body { padding: 1rem 1.2rem; background: var(--surface); border-top: 1px solid var(--border); display: none; }
+  .step-body.open { display: block; }
+  .step-body p, .step-body li { font-size: .88rem; color: var(--text-dim); margin-bottom: .4rem; }
+  .step-body ul { padding-left: 1.2rem; }
+
+  /* ─── QUIZ ─── */
+  .quiz-card {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 1.4rem;
+    margin-bottom: 1.2rem;
+  }
+  .quiz-q { font-size: .95rem; font-weight: 600; margin-bottom: 1rem; }
+  .quiz-opts { display: flex; flex-direction: column; gap: .5rem; }
+  .quiz-opt {
+    padding: .7rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: .88rem;
+    transition: all .2s;
+    text-align: left;
+    color: var(--text);
+  }
+  .quiz-opt:hover:not(:disabled) { border-color: var(--accent); background: rgba(124,106,247,.1); }
+  .quiz-opt.correct { border-color: var(--success); background: rgba(106,247,184,.1); color: var(--success); }
+  .quiz-opt.wrong { border-color: var(--danger); background: rgba(247,106,106,.1); color: var(--danger); }
+  .quiz-opt:disabled { cursor: default; }
+  .quiz-feedback { margin-top: .8rem; font-size: .85rem; padding: .6rem 1rem; border-radius: 6px; display: none; }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.ok { background: rgba(106,247,184,.1); color: var(--success); border: 1px solid rgba(106,247,184,.3); }
+  .quiz-feedback.fail { background: rgba(247,106,106,.1); color: var(--danger); border: 1px solid rgba(247,106,106,.3); }
+  .quiz-score { font-size: 1.4rem; font-weight: 800; text-align: center; padding: 1.5rem; color: var(--accent3); }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-wrap { background: var(--surface2); border-radius: 4px; height: 6px; margin: .5rem 0 1.5rem; }
+  .progress-bar { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent3)); transition: width .4s; }
+
+  /* ─── BADGE / HIGHLIGHT ─── */
+  .highlight { background: rgba(247,194,106,.12); border-radius: 4px; padding: .1rem .4rem; color: var(--accent2); font-size: .9em; }
+  .callout {
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    background: rgba(124,106,247,.07);
+    font-size: .9rem;
+  }
+  .callout strong { color: var(--accent); }
+
+  /* ─── TRANSFORMER BLOCK VIZ ─── */
+  .transformer-block {
+    border: 2px solid var(--tr-color);
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin: 1rem 0;
+    background: rgba(247,194,106,.04);
+  }
+  .block-layer {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: .7rem 1rem;
+    margin: .5rem 0;
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    font-size: .88rem;
+  }
+  .block-icon { font-size: 1.2rem; }
+  .block-arrow { text-align: center; color: var(--text-dim); font-size: 1.2rem; margin: .2rem 0; }
+
+  /* ─── SCROLLBACK ─── */
+  .scroll-top-btn {
+    position: fixed;
+    bottom: 2rem; right: 2rem;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(124,106,247,.4);
+    transition: all .2s;
+    z-index: 999;
+  }
+  .scroll-top-btn:hover { transform: scale(1.1); }
+
+  /* Responsive */
+  @media(max-width:600px) {
+    .pro-con { grid-template-columns: 1fr; }
+    .nav-tabs { padding: .8rem 1rem; }
+    .section { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 <span class="rnn">Recurrent Neural Networks</span> <span class="amp">&</span> <span class="tr">Transformers</span></h1>
+  <p>KAUST Academy · Day 11 &amp; 12 · Interactive Study Guide</p>
+</header>
+
+<!-- NAV TABS -->
+<nav class="nav-tabs">
+  <button class="tab-btn active" onclick="showTab('overview')">🗺️ Overview</button>
+  <button class="tab-btn" onclick="showTab('rnn-intro')">🔁 RNN Basics</button>
+  <button class="tab-btn" onclick="showTab('rnn-seq2seq')">🔀 Seq2Seq</button>
+  <button class="tab-btn" onclick="showTab('rnn-attention')">🎯 RNN Attention</button>
+  <button class="tab-btn" onclick="showTab('rnn-limits')">⚠️ RNN Limits</button>
+  <button class="tab-btn tr-btn" onclick="showTab('tr-motivation')">💡 Why Transformers</button>
+  <button class="tab-btn tr-btn" onclick="showTab('tr-attention')">🧩 Attention Layers</button>
+  <button class="tab-btn tr-btn" onclick="showTab('tr-self-attn')">🔍 Self-Attention</button>
+  <button class="tab-btn tr-btn" onclick="showTab('tr-posenc')">📍 Positional Encoding</button>
+  <button class="tab-btn tr-btn" onclick="showTab('tr-arch')">🏗️ Architecture</button>
+  <button class="tab-btn" onclick="showTab('compare')">⚖️ RNN vs Transformer</button>
+  <button class="tab-btn" onclick="showTab('quiz')">🧪 Quiz</button>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     SECTION: OVERVIEW
+════════════════════════════════════════════ -->
+<section id="overview" class="section active">
+  <div class="card">
+    <h2>📖 What You'll Learn</h2>
+    <p>These two lectures form a natural story: <span class="highlight">RNNs</span> were the first attempt to handle sequential data with memory — but they had real limitations. <span class="highlight">Transformers</span> solved those limitations with a revolutionary attention-only architecture. By the end of this guide you'll understand both deeply.</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+    <div class="card" style="border-color: var(--rnn-color);">
+      <h2><span class="tag tag-rnn">Day 11</span> Recurrent Neural Networks</h2>
+      <ul>
+        <li>RNN hidden state & recurrence</li>
+        <li>BPTT training & gradient issues</li>
+        <li>Image captioning (CNN + RNN)</li>
+        <li>Encoder–Decoder (Seq2Seq)</li>
+        <li>Attention in Seq2Seq</li>
+        <li>Limitations of RNNs</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color: var(--tr-color);">
+      <h2><span class="tag tag-tr">Day 12</span> Transformers</h2>
+      <ul>
+        <li>General Attention layer</li>
+        <li>Self-Attention (Q, K, V)</li>
+        <li>Scaled dot-product</li>
+        <li>Positional Encoding</li>
+        <li>Masked Self-Attention</li>
+        <li>Multi-Head Attention</li>
+        <li>Full Transformer Architecture</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧭 The Big Picture</h2>
+    <p style="color:var(--text); margin-bottom:.8rem;">Here's how everything connects:</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1</div>
+          <span class="step-title">Sequential data needs memory → RNNs invented</span>
+        </div>
+        <div class="step-body">
+          <p>Traditional feedforward networks ignore <em>order</em>. To handle text, speech, and time series you need the model to "remember" previous steps. RNNs achieve this with a hidden state passed forward through time.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">2</div>
+          <span class="step-title">Seq2Seq: encoder compresses, decoder generates</span>
+        </div>
+        <div class="step-body">
+          <p>For tasks like machine translation, a two-RNN setup emerged: the encoder reads the entire input and compresses it into a single context vector. The decoder uses that vector to generate output word by word.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">3</div>
+          <span class="step-title">Bottleneck problem → Attention mechanism added to RNNs</span>
+        </div>
+        <div class="step-body">
+          <p>A single context vector can't capture everything for long inputs. Attention solves this by letting the decoder dynamically "look back" at all encoder hidden states instead of just the last one.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">4</div>
+          <span class="step-title">RNNs are sequential → can't parallelize → Transformers born</span>
+        </div>
+        <div class="step-body">
+          <p>Even with attention, RNNs must process tokens one at a time. Vaswani et al. (2017) asked: what if we use <em>only</em> attention, with no recurrence at all? The result was the Transformer — fully parallelizable and far more scalable.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: RNN BASICS
+════════════════════════════════════════════ -->
+<section id="rnn-intro" class="section">
+  <div class="card">
+    <h2>🔁 What is an RNN?</h2>
+    <p><strong>Definition:</strong> An RNN is a neural network with a <em>looping mechanism</em> — the output at each time step feeds back as input to the next step. This loop gives the network a form of <em>memory</em>.</p>
+
+    <h3>Core Recurrence Equation</h3>
+    <p>At every time step $t$, the hidden state is updated as:</p>
+    <div class="eq-box">
+      <div class="eq-label">Hidden State Update</div>
+      $$h_t = \sigma\!\left(W_h\, h_{t-1} + W_x\, x_t + b\right)$$
+    </div>
+    <ul>
+      <li>$h_t$ — hidden state at time $t$ (the "memory")</li>
+      <li>$h_{t-1}$ — hidden state from the previous step</li>
+      <li>$x_t$ — input at time $t$</li>
+      <li>$W_h$ — weight matrix for the hidden state (recurrent weights)</li>
+      <li>$W_x$ — weight matrix for the input</li>
+      <li>$b$ — bias vector</li>
+      <li>$\sigma$ — activation function (e.g., tanh or ReLU)</li>
+    </ul>
+
+    <div class="callout">
+      <strong>Key insight:</strong> The same weights $W_h$ and $W_x$ are shared across <em>all</em> time steps. This is what keeps the model size constant regardless of sequence length.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📜 RNN Unrolled Through Time</h2>
+    <p>An RNN can be "unrolled" to visualize how it processes a sequence step by step:</p>
+    <div class="rnn-cells">
+      <div class="rnn-cell-wrap">
+        <div class="rnn-input">x₁</div>
+        <div class="rnn-cell">RNN</div>
+        <div class="rnn-label">h₁</div>
+      </div>
+      <div class="rnn-arrow">→</div>
+      <div class="rnn-cell-wrap">
+        <div class="rnn-input">x₂</div>
+        <div class="rnn-cell">RNN</div>
+        <div class="rnn-label">h₂</div>
+      </div>
+      <div class="rnn-arrow">→</div>
+      <div class="rnn-cell-wrap">
+        <div class="rnn-input">x₃</div>
+        <div class="rnn-cell">RNN</div>
+        <div class="rnn-label">h₃</div>
+      </div>
+      <div class="rnn-arrow">→</div>
+      <div class="rnn-cell-wrap">
+        <div class="rnn-input">x₄</div>
+        <div class="rnn-cell">RNN</div>
+        <div class="rnn-label">h₄</div>
+      </div>
+      <div class="rnn-arrow">→</div>
+      <div class="rnn-cell-wrap">
+        <div class="rnn-input">x₅</div>
+        <div class="rnn-cell">RNN</div>
+        <div class="rnn-label">h₅ → ŷ</div>
+      </div>
+    </div>
+    <p style="margin-top:.8rem;">Example: predicting the next word in <em>"Apple is ___"</em> uses context stored from previous tokens in $h$.</p>
+  </div>
+
+  <div class="card">
+    <h2>⚙️ Training: Backpropagation Through Time (BPTT)</h2>
+    <p>Training an RNN uses <strong>BPTT</strong> — the network is unrolled over time and gradients are backpropagated through each time step.</p>
+    <div class="eq-box">
+      <div class="eq-label">Gradient chain through time</div>
+      $$\frac{\partial \mathcal{L}}{\partial W_h} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial W_h}$$
+    </div>
+    <p>The chain rule must be applied across all $T$ time steps, which creates a long product of Jacobians — the source of gradient problems.</p>
+
+    <div class="pro-con">
+      <div class="pro">
+        <h4>✅ Advantages</h4>
+        <ul>
+          <li>Processes <em>any</em> length input sequence</li>
+          <li>Model size constant regardless of sequence length</li>
+          <li>Same weights at every time step (symmetry)</li>
+          <li>Theoretically captures information from many steps back</li>
+        </ul>
+      </div>
+      <div class="con">
+        <h4>❌ Disadvantages</h4>
+        <ul>
+          <li>Recurrent computation is <strong>sequential — slow</strong></li>
+          <li>In practice, only ~10 steps of real memory</li>
+          <li><strong>Vanishing gradients</strong>: gradients shrink to 0 over time</li>
+          <li><strong>Exploding gradients</strong>: gradients blow up exponentially</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🖼️ Neural Network Type Comparison</h2>
+    <p>RNNs are one of several major NN architectures, each suited to different data:</p>
+    <table>
+      <tr><th>Type</th><th>Best For</th><th>Input Shape</th></tr>
+      <tr><td>Feedforward (MLP)</td><td>Fixed-size inputs (tabular data)</td><td>Vector</td></tr>
+      <tr><td>CNN</td><td>Spatial patterns (images)</td><td>Grid (H×W×C)</td></tr>
+      <tr><td>RNN</td><td>Sequential data (text, time series)</td><td>Sequence T×D</td></tr>
+      <tr><td>Transformer</td><td>Sequences with long-range dependencies</td><td>Sequence T×D</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🌍 Applications</h2>
+    <ul>
+      <li><strong>Machine Translation:</strong> Sentence → sentence in another language</li>
+      <li><strong>Time-Series Prediction:</strong> Forecasting stock prices (LSTM/GRU)</li>
+      <li><strong>Image Captioning:</strong> CNN extracts features → RNN generates text</li>
+      <li><strong>Sentiment Analysis:</strong> Classify opinion from text</li>
+      <li><strong>Speech Recognition:</strong> Audio waveform → transcription</li>
+      <li><strong>DNA Sequencing:</strong> Biological sequence analysis</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: SEQ2SEQ
+════════════════════════════════════════════ -->
+<section id="rnn-seq2seq" class="section">
+  <div class="card">
+    <h2>🔀 Sequence-to-Sequence Models</h2>
+    <p>Many real-world tasks require <em>mapping</em> one sequence to another (e.g., English → French, question → answer). The <strong>Encoder–Decoder</strong> framework handles this.</p>
+  </div>
+
+  <div class="card">
+    <h2>🗜️ Encoder</h2>
+    <ul>
+      <li>Processes the <strong>entire input sequence</strong> one token at a time</li>
+      <li>Produces a series of hidden states $h_1, h_2, \ldots, h_T$</li>
+      <li>The <strong>final hidden state</strong> $h_T$ becomes the <em>context vector</em> $c$</li>
+      <li>This context vector is supposed to summarize the <em>entire</em> input</li>
+    </ul>
+    <div class="eq-box">
+      <div class="eq-label">Context Vector (no attention)</div>
+      $$c = h_T^{\text{encoder}}$$
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🗣️ Decoder</h2>
+    <ul>
+      <li>Initialized with the encoder's context vector $c$</li>
+      <li>Generates output tokens <strong>one at a time</strong></li>
+      <li>Each step uses: the context vector, its own previous hidden state, and the previous output token</li>
+      <li>Stops when it generates a special end token</li>
+    </ul>
+    <div class="eq-box">
+      <div class="eq-label">Decoder step</div>
+      $$s_t = f(s_{t-1},\; y_{t-1},\; c)$$
+      $$y_t = \text{softmax}(W_s\, s_t)$$
+    </div>
+    <p>where $s_t$ is the decoder hidden state and $y_t$ is the output token at step $t$.</p>
+  </div>
+
+  <div class="card">
+    <h2>⚠️ The Bottleneck Problem — With Empirical Evidence</h2>
+    <div class="callout" style="border-color: var(--danger); background: rgba(247,106,106,.07);">
+      <strong style="color: var(--danger);">Problem:</strong> Compressing an entire long sentence into a <em>single fixed-size vector</em> loses information — especially for long sequences. What if T = 1000?
+    </div>
+    <p>The lecture shows a BLEU score graph (Cho et al., 2014) that makes this concrete:</p>
+    <div class="attn-demo" style="padding:1.2rem;">
+      <h4 style="color:var(--danger); margin-bottom:.8rem;">📉 BLEU Score vs Sentence Length</h4>
+      <svg viewBox="0 0 400 200" style="width:100%; max-width:500px; display:block; margin:0 auto; font-size:11px; font-family:sans-serif;">
+        <!-- Axes -->
+        <line x1="50" y1="10" x2="50" y2="165" stroke="#555" stroke-width="1.5"/>
+        <line x1="50" y1="165" x2="380" y2="165" stroke="#555" stroke-width="1.5"/>
+        <!-- Y axis labels -->
+        <text x="44" y="30" fill="#9ea3c0" text-anchor="end">30</text>
+        <text x="44" y="80" fill="#9ea3c0" text-anchor="end">20</text>
+        <text x="44" y="130" fill="#9ea3c0" text-anchor="end">10</text>
+        <text x="44" y="165" fill="#9ea3c0" text-anchor="end">0</text>
+        <!-- X axis labels -->
+        <text x="50" y="180" fill="#9ea3c0" text-anchor="middle">0</text>
+        <text x="130" y="180" fill="#9ea3c0" text-anchor="middle">20</text>
+        <text x="210" y="180" fill="#9ea3c0" text-anchor="middle">40</text>
+        <text x="290" y="180" fill="#9ea3c0" text-anchor="middle">60</text>
+        <!-- Axis titles -->
+        <text x="215" y="196" fill="#9ea3c0" text-anchor="middle">Sentence length</text>
+        <text x="12" y="90" fill="#9ea3c0" text-anchor="middle" transform="rotate(-90,12,90)">BLEU score</text>
+        <!-- RNNsearch-50: stays high, slight dip then recovery -->
+        <polyline points="50,100 90,85 130,78 170,82 210,79 250,80 290,82 330,80 370,79"
+          fill="none" stroke="#7c6af7" stroke-width="2" stroke-dasharray="0"/>
+        <text x="372" y="78" fill="#7c6af7" font-size="9">RNNsearch-50</text>
+        <!-- RNNsearch-30: similar but slightly lower for long -->
+        <polyline points="50,100 90,86 130,80 170,85 210,87 250,92 290,95 330,98 370,102"
+          fill="none" stroke="#6af7b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="372" y="101" fill="#6af7b8" font-size="9">RNNsearch-30</text>
+        <!-- RNNenc-50: degrades strongly -->
+        <polyline points="50,98 90,88 130,92 170,105 210,118 250,130 290,140 330,148 370,152"
+          fill="none" stroke="#f7c26a" stroke-width="1.5" stroke-dasharray="6,3"/>
+        <text x="372" y="151" fill="#f7c26a" font-size="9">RNNenc-50</text>
+        <!-- RNNenc-30: worst -->
+        <polyline points="50,102 90,95 130,105 170,120 210,135 250,148 290,155 330,158 370,160"
+          fill="none" stroke="#f76a6a" stroke-width="1.5" stroke-dasharray="2,2"/>
+        <text x="372" y="159" fill="#f76a6a" font-size="9">RNNenc-30</text>
+      </svg>
+      <p style="font-size:.83rem; color:var(--text-dim); margin-top:.8rem;">Models <em>without</em> attention (RNNenc) show strongly <strong style="color:var(--danger);">declining BLEU</strong> as sentence length grows. Models <em>with</em> attention (RNNsearch) maintain high BLEU even for long sentences. This is the empirical proof that the fixed context vector bottleneck is a real problem.</p>
+    </div>
+    <p style="margin-top:.8rem;">The solution? <strong>Attention</strong> — the decoder can look at <em>all</em> encoder hidden states, not just the last one.</p>
+  </div>
+
+  <div class="card">
+    <h2>📏 Sequence Types by Length Ratio</h2>
+    <p>Seq2Seq models can handle different input/output length relationships:</p>
+    <table>
+      <tr><th>Pattern</th><th>Example</th><th>Input:Output Ratio</th></tr>
+      <tr><td>One-to-One</td><td>Image classification</td><td>Fixed → Fixed</td></tr>
+      <tr><td>One-to-Many</td><td>Image captioning</td><td>Single → Sequence</td></tr>
+      <tr><td>Many-to-One</td><td>Sentiment analysis</td><td>Sequence → Single</td></tr>
+      <tr><td>Many-to-Many (same)</td><td>Video frame labeling</td><td>T → T</td></tr>
+      <tr><td>Many-to-Many (diff)</td><td>Machine translation</td><td>T₁ → T₂</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: RNN ATTENTION
+════════════════════════════════════════════ -->
+<section id="rnn-attention" class="section">
+  <div class="card">
+    <h2>🎯 Attention in Seq2Seq</h2>
+    <p>Instead of bottlenecking through a single context vector, <strong>attention</strong> lets the decoder dynamically focus on different parts of the input at each output step.</p>
+    <div class="callout">
+      <strong>Core idea:</strong> At each decoder time step $t$, compute a <em>different</em> context vector $c_t$ by taking a weighted sum of <em>all</em> encoder hidden states.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔄 Bidirectional Encoder (Bahdanau et al., 2014)</h2>
+    <p>The original attention paper used a <strong>bidirectional RNN encoder</strong> — two RNNs that read the sequence in opposite directions:</p>
+    <div class="rnn-cells" style="justify-content:center; flex-wrap:wrap; gap:.4rem;">
+      <div class="rnn-cell-wrap"><div class="rnn-cell" style="background:rgba(106,247,184,.2); border-color:var(--accent3); color:var(--accent3);">→</div><div class="rnn-label" style="color:var(--accent3);">$\vec{h}_1$</div></div>
+      <div class="rnn-arrow" style="color:var(--accent3);">→</div>
+      <div class="rnn-cell-wrap"><div class="rnn-cell" style="background:rgba(106,247,184,.2); border-color:var(--accent3); color:var(--accent3);">→</div><div class="rnn-label" style="color:var(--accent3);">$\vec{h}_2$</div></div>
+      <div class="rnn-arrow" style="color:var(--accent3);">→</div>
+      <div class="rnn-cell-wrap"><div class="rnn-cell" style="background:rgba(106,247,184,.2); border-color:var(--accent3); color:var(--accent3);">→</div><div class="rnn-label" style="color:var(--accent3);">$\vec{h}_3$</div></div>
+    </div>
+    <div class="rnn-cells" style="justify-content:center; flex-wrap:wrap; gap:.4rem; margin-top:.4rem;">
+      <div class="rnn-cell-wrap"><div class="rnn-cell" style="background:rgba(247,106,106,.15); border-color:var(--danger); color:var(--danger);">←</div><div class="rnn-label" style="color:var(--danger);">$\overleftarrow{h}_1$</div></div>
+      <div class="rnn-arrow" style="color:var(--danger);">←</div>
+      <div class="rnn-cell-wrap"><div class="rnn-cell" style="background:rgba(247,106,106,.15); border-color:var(--danger); color:var(--danger);">←</div><div class="rnn-label" style="color:var(--danger);">$\overleftarrow{h}_2$</div></div>
+      <div class="rnn-arrow" style="color:var(--danger);">←</div>
+      <div class="rnn-cell-wrap"><div class="rnn-cell" style="background:rgba(247,106,106,.15); border-color:var(--danger); color:var(--danger);">←</div><div class="rnn-label" style="color:var(--danger);">$\overleftarrow{h}_3$</div></div>
+    </div>
+    <div class="eq-box" style="margin-top:1rem;">
+      <div class="eq-label">Annotation vector (concatenate forward + backward)</div>
+      $$h_i = \left[\vec{h}_i\, ;\, \overleftarrow{h}_i\right]$$
+    </div>
+    <p>Each annotation $h_i$ captures context from <em>both directions</em> — what came before <em>and</em> after position $i$. This gives richer encoder representations for the attention mechanism to work with.</p>
+  </div>
+
+  <div class="card">
+    <h2>🧮 How Attention Works — Step by Step</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1</div>
+          <span class="step-title">Compute alignment scores (using an MLP)</span>
+        </div>
+        <div class="step-body">
+          <p>For each encoder hidden state $h_i$ and the current decoder state $s_{t-1}$, compute a scalar compatibility score using a small learned MLP $f_{\text{att}}$:</p>
+          <div class="eq-box">$$e_{t,i} = f_{\text{att}}(s_{t-1},\; h_i)$$</div>
+          <p>This MLP is trained end-to-end — no separate supervision needed (see below).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">2</div>
+          <span class="step-title">Normalize with Softmax → attention weights</span>
+        </div>
+        <div class="step-body">
+          <div class="eq-box">$$\alpha_{t,i} = \frac{\exp(e_{t,i})}{\sum_{j=1}^{T}\exp(e_{t,j})}, \quad 0 < \alpha_{t,i} < 1,\quad \sum_i \alpha_{t,i} = 1$$</div>
+          <p>The weights $\alpha_{t,i}$ sum to 1 across all encoder positions $i$. They tell the decoder how much to "look at" each encoder state at this decoding step.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">3</div>
+          <span class="step-title">Weighted sum → dynamic context vector</span>
+        </div>
+        <div class="step-body">
+          <div class="eq-box">$$c_t = \sum_{i=1}^{T} \alpha_{t,i}\, h_i$$</div>
+          <p>Context vector $c_t$ is a linear combination of hidden states, weighted by attention. Different at each decoder step — it "attends" to relevant input positions.</p>
+          <p><strong>Concrete example</strong> (from the lecture): translating "we are eating bread" → Spanish. When generating <em>"estamos"</em> (= "we are"), the model attends mostly to positions 1 and 2: $\alpha_{1,1} = \alpha_{1,2} \approx 0.45$, $\alpha_{1,3} = \alpha_{1,4} \approx 0.05$. When generating <em>"comiendo"</em> (= "eating"): $\alpha_{2,3} \approx 0.8$, $\alpha_{2,2} \approx 0.1$, $\alpha_{2,1} = \alpha_{2,4} \approx 0.05$.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">4</div>
+          <span class="step-title">Generate output token using context</span>
+        </div>
+        <div class="step-body">
+          <div class="eq-box">$$s_t = g_U(y_{t-1},\; s_{t-1},\; c_t)$$</div>
+          <p>The decoder uses its previous state $s_{t-1}$, the previous output $y_{t-1}$, and the dynamically computed context $c_t$ to produce the next token.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="border-color:var(--accent3); background:rgba(106,247,184,.06); margin-top:1rem;">
+      <strong style="color:var(--accent3);">🔑 Key insight from the lecture:</strong> This is <strong>fully differentiable</strong>. There is <em>no explicit supervision</em> on the attention weights — they are learned purely through backpropagation of the translation loss. The model discovers what to attend to automatically!
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🌡️ Attention Heatmap: English → French Translation</h2>
+    <p>From Bahdanau et al. (ICLR 2015): the attention weights $\alpha_{t,i}$ can be visualized as a matrix — rows = output words, columns = input words.</p>
+    <div class="attn-demo">
+      <h4 style="margin-bottom:.6rem;">Input: "The agreement on the European Economic Area was signed in August 1992"</h4>
+      <p style="font-size:.82rem; color:var(--text-dim); margin-bottom:1rem;">Output: "L'accord sur la zone économique européenne a été signé en août 1992"</p>
+      <div style="overflow-x:auto;">
+        <table style="font-size:.72rem; border-collapse:collapse; min-width:500px;">
+          <thead>
+            <tr>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); min-height:60px; color:var(--accent2);">The</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">agreement</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">on</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">the</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">European</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">Economic</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">Area</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">signed</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">August</th>
+              <th style="padding:.3rem .5rem; writing-mode:vertical-rl; transform:rotate(180deg); color:var(--accent2);">1992</th>
+              <th style="color:var(--text-dim); padding:.3rem .6rem; text-align:left;">Output word</th>
+            </tr>
+          </thead>
+          <tbody id="heatmap-body"></tbody>
+        </table>
+      </div>
+      <p style="font-size:.8rem; color:var(--text-dim); margin-top:.8rem;">🔵 <strong>Diagonal</strong> = words correspond in order. 🔲 <strong>Off-diagonal</strong> = different word orders (e.g., "European Economic Area" → "zone économique européenne" reorders). This is learned automatically with no alignment supervision!</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📐 Attention Summary: Tensor Shapes</h2>
+    <p>The full attention mechanism for image captioning (from the lecture's summary slide) with explicit shapes:</p>
+    <div class="eq-box">
+      <div class="eq-label">Inputs</div>
+      $$\mathbf{z} \in \mathbb{R}^{H \times W \times D} \quad \text{(spatial CNN features)}, \quad \mathbf{h} \in \mathbb{R}^{D} \quad \text{(decoder query)}$$
+    </div>
+    <div class="eq-box">
+      <div class="eq-label">Alignment scores (one per spatial location)</div>
+      $$e_{i,j} = f_{\text{att}}(\mathbf{h},\; \mathbf{z}_{i,j}), \quad \mathbf{e} \in \mathbb{R}^{H \times W}$$
+    </div>
+    <div class="eq-box">
+      <div class="eq-label">Attention weights (softmax over spatial grid)</div>
+      $$\mathbf{a} = \text{softmax}(\mathbf{e}), \quad \mathbf{a} \in \mathbb{R}^{H \times W}$$
+    </div>
+    <div class="eq-box">
+      <div class="eq-label">Context vector (weighted sum over spatial locations)</div>
+      $$\mathbf{c} = \sum_{i,j} a_{i,j}\, \mathbf{z}_{i,j}, \quad \mathbf{c} \in \mathbb{R}^{D}$$
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🖼️ Image Captioning: CNN + RNN Architecture</h2>
+    <p>Before attention, image captioning used a simple CNN → RNN pipeline. The CNN (e.g., VGG or ResNet) extracts a visual feature vector $v_i$, which seeds the RNN decoder:</p>
+    <div class="eq-box">
+      <div class="eq-label">RNN decoder for image captioning</div>
+      $$h_t = \tanh(W_{hh}\, h_{t-1} + W_{hx}\, x_t + b_h)$$
+      $$y_t = \text{softmax}(W_{oh}\, h_t + b_o)$$
+    </div>
+    <ul>
+      <li>$W_{hh}$ — hidden-to-hidden weight matrix (recurrent connections)</li>
+      <li>$W_{hx}$ — input-to-hidden weight matrix (processes word embeddings)</li>
+      <li>$W_{oh}$ — hidden-to-output weight matrix (produces word probabilities)</li>
+      <li>The CNN feature $v_i$ initializes the hidden state $h_0$ of the RNN</li>
+      <li>Input sequence: [START] → "straw" → "hat" → … The RNN generates one word per step until END</li>
+    </ul>
+    <h3>With Attention: "Show, Attend and Tell" (Xu et al., ICML 2015)</h3>
+    <ul>
+      <li>CNN extracts a <em>grid</em> of feature vectors $h_{i,j}$ (not just one vector)</li>
+      <li>At each caption word generation step, the decoder attends to <em>different spatial regions</em></li>
+      <li>Generating "cat" → attention focuses on the cat region; "sitting" → focuses on the body; "outside" → focuses on the background</li>
+      <li>Each decoder step uses a different context vector $c_t = \sum_{i,j} a_{t,i,j}\, h_{i,j}$</li>
+    </ul>
+    <div class="callout" style="border-color: var(--accent3); background: rgba(106,247,184,.05);">
+      <strong style="color: var(--accent3);">Results from the paper:</strong> For "A dog is standing on a hardwood floor" — the word "dog" gets high attention on the dog region; for "A stop sign on a road with a mountain in the background" — "stop" lights up the sign, "mountain" lights up the background. The model learns to look at the right place automatically!
+    </div>
+  </div>
+
+  <!-- Interactive Attention Demo -->
+  <div class="card">
+    <h2>🎮 Interactive Attention Demo</h2>
+    <p>Click a decoder output word to see how attention would distribute over the input:</p>
+    <div class="attn-demo">
+      <h4>Input (Encoder tokens):</h4>
+      <div class="word-row" id="input-tokens">
+        <span class="word-token">The</span>
+        <span class="word-token">cat</span>
+        <span class="word-token">sat</span>
+        <span class="word-token">on</span>
+        <span class="word-token">the</span>
+        <span class="word-token">mat</span>
+      </div>
+      <h4 style="margin-top:1rem;">Output word being generated (click one):</h4>
+      <div class="word-row" id="output-tokens">
+        <span class="word-token" onclick="showAttn(this,'Le',[0.15,0.05,0.05,0.05,0.15,0.05])">Le</span>
+        <span class="word-token" onclick="showAttn(this,'chat',[0.05,0.70,0.08,0.05,0.05,0.07])">chat</span>
+        <span class="word-token" onclick="showAttn(this,'était',[0.05,0.05,0.75,0.05,0.05,0.05])">était</span>
+        <span class="word-token" onclick="showAttn(this,'sur',[0.05,0.05,0.05,0.65,0.05,0.15])">sur</span>
+        <span class="word-token" onclick="showAttn(this,'le',[0.15,0.05,0.05,0.05,0.55,0.15])">le</span>
+        <span class="word-token" onclick="showAttn(this,'tapis',[0.05,0.08,0.05,0.10,0.05,0.67])">tapis</span>
+      </div>
+      <h4 style="margin-top:1rem;">Attention weights over input:</h4>
+      <div class="attn-weights" id="attn-bars">
+        <p style="color:var(--text-dim); font-size:.85rem;">← Click an output word above</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: RNN LIMITATIONS
+════════════════════════════════════════════ -->
+<section id="rnn-limits" class="section">
+  <div class="card">
+    <h2>⚠️ Limitations of RNNs</h2>
+    <div class="callout" style="border-color:var(--danger); background:rgba(247,106,106,.06);">
+      <strong style="color:var(--danger);">Bottom line:</strong> RNNs opened the door to sequence modeling but suffer from fundamental architectural limitations that motivated the invention of Transformers.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1️⃣ Long-term Dependency Problem</h2>
+    <p>Basic RNNs have difficulty capturing dependencies in sequences <strong>longer than ~10 steps</strong>.</p>
+    <h3>Why? Vanishing Gradients</h3>
+    <p>During BPTT, gradients must be multiplied together across many time steps:</p>
+    <div class="eq-box" style="border-color: var(--danger);">
+      $$\frac{\partial h_t}{\partial h_1} = \prod_{k=1}^{t-1} \frac{\partial h_{k+1}}{\partial h_k} = \prod_{k=1}^{t-1} W_h^\top \cdot \text{diag}(\sigma'(h_k))$$
+    </div>
+    <ul>
+      <li>If the entries of $W_h$ are $< 1$, the product shrinks toward 0 → <strong>vanishing gradient</strong> → early steps contribute nothing to learning</li>
+      <li>If the entries of $W_h$ are $> 1$, the product explodes → <strong>exploding gradient</strong> → numerical instability</li>
+    </ul>
+    <div class="callout">
+      <strong>Historical note:</strong> Hochreiter & Schmidhuber (1997) invented <strong>LSTMs</strong> specifically to solve the vanishing gradient problem via gating mechanisms. Cho et al. (2014) later proposed the simpler <strong>GRU</strong>.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2️⃣ Sequential Computation — No Parallelism</h2>
+    <p>An RNN <em>must</em> process $x_1$ before $x_2$, before $x_3$, etc. You <strong>cannot</strong> parallelize across time steps within a sequence.</p>
+    <ul>
+      <li>Makes training on long sequences very slow</li>
+      <li>Modern GPUs excel at <em>parallel</em> matrix multiplications — RNNs barely use this</li>
+      <li>Transformers, in contrast, process all positions <em>simultaneously</em></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>3️⃣ Alternatives that Emerged</h2>
+    <table>
+      <tr><th>Architecture</th><th>Improvement</th><th>Status</th></tr>
+      <tr><td>LSTM</td><td>Gating → solves vanishing gradients</td><td>Still used for some tasks</td></tr>
+      <tr><td>GRU</td><td>Simpler gating than LSTM</td><td>Still used, fewer params</td></tr>
+      <tr><td>Transformer</td><td>Full attention, no recurrence, parallelizable</td><td>Dominant architecture today</td></tr>
+      <tr><td>LLMs (GPT, BERT, etc.)</td><td>Transformer scaled to billions of params</td><td>State of the art</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: TRANSFORMER MOTIVATION
+════════════════════════════════════════════ -->
+<section id="tr-motivation" class="section">
+  <div class="card" style="border-color: var(--tr-color);">
+    <h2><span class="tag tag-tr">Day 12</span> 💡 Why Transformers?</h2>
+    <p>The 2017 paper <em>"Attention Is All You Need"</em> (Vaswani et al., NeurIPS 2017) introduced the Transformer — arguably the most impactful neural network architecture of the past decade.</p>
+  </div>
+
+  <div class="card">
+    <h2>🚫 Problems with RNNs &amp; CNNs</h2>
+    <table>
+      <tr><th>Problem</th><th>RNNs</th><th>CNNs</th></tr>
+      <tr><td>Long-range dependencies</td><td>❌ Hard to capture (~10 steps)</td><td>❌ Only local patterns</td></tr>
+      <tr><td>Parallelization</td><td>❌ Sequential, can't parallelize</td><td>✅ Can parallelize</td></tr>
+      <tr><td>Global context</td><td>⚠️ Partial (via attention add-on)</td><td>❌ Limited to receptive field</td></tr>
+      <tr><td>Training speed</td><td>❌ Slow for long sequences</td><td>⚠️ Medium</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>✅ Transformers Address All of These</h2>
+    <div class="pro-con">
+      <div class="pro">
+        <h4>What Transformers provide</h4>
+        <ul>
+          <li><strong>Global context</strong>: every token attends to every other token</li>
+          <li><strong>Full parallelization</strong>: all positions computed simultaneously</li>
+          <li><strong>Scalability</strong>: easily stacked into deep models</li>
+          <li><strong>Flexibility</strong>: works for text, images, audio, code…</li>
+        </ul>
+      </div>
+      <div class="con">
+        <h4>Trade-offs</h4>
+        <ul>
+          <li>Quadratic complexity in sequence length: $O(T^2)$ attention</li>
+          <li>No built-in position awareness (must be added)</li>
+          <li>Require large amounts of data and compute</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: ATTENTION LAYERS
+════════════════════════════════════════════ -->
+<section id="tr-attention" class="section">
+  <div class="card">
+    <h2>🧩 General Attention Layer</h2>
+    <p>Before self-attention, let's understand the <em>general</em> attention formulation used in the Transformer.</p>
+    <h3>The Three Ingredients: Queries, Keys, Values</h3>
+    <table>
+      <tr><th>Symbol</th><th>Role</th><th>Analogy</th></tr>
+      <tr><td>$Q$ — Query</td><td>What we're looking for</td><td>Search query</td></tr>
+      <tr><td>$K$ — Key</td><td>What each item offers</td><td>Document index entry</td></tr>
+      <tr><td>$V$ — Value</td><td>The actual content to retrieve</td><td>Document content</td></tr>
+    </table>
+
+    <h3>Scaled Dot-Product Attention</h3>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Core Attention Formula</div>
+      $$\text{Attention}(Q, K, V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{D}}\right) V$$
+    </div>
+    <ul>
+      <li>$Q \in \mathbb{R}^{N_q \times D}$, $K \in \mathbb{R}^{N \times D}$, $V \in \mathbb{R}^{N \times D_v}$</li>
+      <li>$QK^\top$ computes pairwise dot-product similarities between queries and keys</li>
+      <li>Divide by $\sqrt{D}$ — <em>why?</em> See below</li>
+      <li>Softmax normalizes scores into a probability distribution (attention weights)</li>
+      <li>Multiply by $V$ to get a weighted sum of values</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>📐 Why Scale by $\sqrt{D}$?</h2>
+    <div class="callout" style="border-color: var(--tr-color); background: rgba(247,194,106,.06);">
+      <strong style="color: var(--tr-color);">The problem:</strong> As feature dimension $D$ grows, the dot products $QK^\top$ grow in magnitude (larger variance). This causes the softmax to become extremely <em>peaked</em> — almost all weight goes to one position.
+    </div>
+    <ul>
+      <li>If queries and keys are IID with mean 0 and variance 1, their dot product has variance $D$</li>
+      <li>Dividing by $\sqrt{D}$ brings variance back to 1</li>
+      <li>This keeps the softmax in a region with <strong>healthy gradients</strong> — not too concentrated, not too uniform</li>
+    </ul>
+    <div class="eq-box eq tr">
+      $$\text{Var}\!\left(\frac{q \cdot k}{\sqrt{D}}\right) = \frac{\text{Var}(q \cdot k)}{D} = \frac{D}{D} = 1$$
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔄 Multiple Queries &amp; Separate Projections</h2>
+    <p>The attention layer can be made more expressive in two key ways:</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">1</div>
+          <span class="step-title">Multiple query vectors simultaneously</span>
+        </div>
+        <div class="step-body">
+          <p>Instead of a single query, use $N_q$ queries at once. Each query attends independently and produces its own context vector. This lets the model extract different types of information from the same input in parallel.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">2</div>
+          <span class="step-title">Separate FC layers for Q, K, V</span>
+        </div>
+        <div class="step-body">
+          <p>Instead of using the raw input vectors directly as queries, keys, <em>and</em> values, we apply separate learned linear (FC) transformations:</p>
+          <div class="eq-box eq tr">
+            $$Q = X W_Q, \quad K = X W_K, \quad V = X W_V$$
+          </div>
+          <p>This is crucial: different weight matrices $W_Q$, $W_K$, $W_V$ allow the model to learn different representations for attending vs. aggregating. Input/output dimensions can also differ.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔁 Permutation Invariance of Attention</h2>
+    <p>The attention operation is <strong>permutation invariant</strong> — if you shuffle the input vectors, you get the same output vectors (just shuffled the same way). This means:</p>
+    <ul>
+      <li>The model doesn't inherently know which position came first</li>
+      <li>For images: reshape $H \times W$ spatial grid into $N = H \times W$ feature vectors — order doesn't matter to attention</li>
+      <li>For sequences: you <em>must</em> add positional encoding (covered in the next section)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: SELF-ATTENTION
+════════════════════════════════════════════ -->
+<section id="tr-self-attn" class="section">
+  <div class="card">
+    <h2>🔍 Self-Attention Layer</h2>
+    <div class="callout" style="border-color: var(--tr-color); background: rgba(247,194,106,.06);">
+      <strong style="color: var(--tr-color);">Key difference from general attention:</strong> In self-attention, the queries, keys, <em>and</em> values all come from the <em>same</em> input sequence. There's no separate "source" and "target."
+    </div>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Self-Attention</div>
+      $$Q = X W_Q, \quad K = X W_K, \quad V = X W_V$$
+      $$\text{SelfAttention}(X) = \text{softmax}\!\left(\frac{X W_Q (X W_K)^\top}{\sqrt{D_k}}\right) X W_V$$
+    </div>
+    <p>Every position in the sequence can attend to every other position — capturing global context in a single layer.</p>
+  </div>
+
+  <div class="card">
+    <h2>⚖️ General Attention vs. Self-Attention</h2>
+    <table>
+      <tr><th>Feature</th><th>General Attention</th><th>Self-Attention</th></tr>
+      <tr><td>Q, K, V origins</td><td>From separate source &amp; target</td><td>From the <em>same</em> input sequence</td></tr>
+      <tr><td>Use case</td><td>Encoder → Decoder cross-attention</td><td>Encoder or Decoder internal</td></tr>
+      <tr><td>Information flow</td><td>Across two representations</td><td>Within a single representation</td></tr>
+      <tr><td>Example</td><td>Translation: decoder attends to encoder</td><td>BERT: each word attends to all others</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🙈 Masked Self-Attention</h2>
+    <p>Used in the <em>decoder</em> during training (and inference) to prevent "cheating" — looking at future tokens.</p>
+    <ul>
+      <li>Set the alignment scores of all future positions to $-\infty$ <em>before</em> the softmax</li>
+      <li>After softmax, $\exp(-\infty) = 0$ → zero attention weight on future tokens</li>
+      <li>Ensures each position $i$ only attends to positions $\leq i$</li>
+    </ul>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Masking</div>
+      $$e_{ij} = \begin{cases} q_i \cdot k_j / \sqrt{D} & j \leq i \\ -\infty & j > i \end{cases}$$
+    </div>
+    <div class="callout" style="border-color: var(--accent3); background: rgba(106,247,184,.05);">
+      <strong style="color: var(--accent3);">Intuition:</strong> When generating word 3 of a translation, the decoder should only be informed by its own words 1 and 2 — not words 4 or 5 that it hasn't generated yet.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🎭 Multi-Head Attention</h2>
+    <p>Instead of running a single attention operation, run $H$ <em>parallel</em> attention "heads" and concatenate their outputs.</p>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Multi-Head Attention</div>
+      $$\text{head}_i = \text{Attention}(Q W_Q^{(i)},\; K W_K^{(i)},\; V W_V^{(i)})$$
+      $$\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_H)\, W_O$$
+    </div>
+    <h3>Why multiple heads?</h3>
+    <ul>
+      <li>Each head can specialize in a different type of relationship (e.g., subject–verb, coreference, syntactic structure)</li>
+      <li>Head 1 might focus on short-range dependencies; head 2 on long-range</li>
+      <li>Concatenating then projecting with $W_O$ merges all perspectives</li>
+      <li>Richer, more expressive representations than any single attention pass</li>
+    </ul>
+    <div class="callout" style="border-color: var(--tr-color); background: rgba(247,194,106,.06);">
+      <strong style="color: var(--tr-color);">Original paper (Vaswani et al. 2017):</strong> Used $H = 8$ heads, model dimension $D = 512$, so each head has dimension $D/H = 64$.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🌐 CNN + Self-Attention — Full Pipeline with Tensor Shapes</h2>
+    <p>The lecture walks through this step-by-step. This is the exact flow shown in slides 22–27:</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">1</div>
+          <span class="step-title">CNN extracts feature map: $C \times H \times W$</span>
+        </div>
+        <div class="step-body">
+          <p>A standard CNN processes the input image and outputs a spatial feature tensor of shape $C \times H \times W$, where $C$ is the number of channels and $H \times W$ is the spatial resolution.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">2</div>
+          <span class="step-title">Three 1×1 Convolutions → Q, K, V (each $C' \times H \times W$)</span>
+        </div>
+        <div class="step-body">
+          <p>Three separate $1 \times 1$ convolutions project the feature map into query, key, and value tensors (each of reduced dimension $C'$):</p>
+          <div class="eq-box eq tr">
+            $$Q = \text{Conv}_{1\times1}(F),\quad K = \text{Conv}_{1\times1}(F),\quad V = \text{Conv}_{1\times1}(F) \quad \in \mathbb{R}^{C' \times H \times W}$$
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">3</div>
+          <span class="step-title">Attention weights: $(H \times W) \times (H \times W)$</span>
+        </div>
+        <div class="step-body">
+          <p>Reshape Q and K to $(C') \times (HW)$, compute pairwise dot products, then softmax:</p>
+          <div class="eq-box eq tr">
+            $$A = \text{softmax}\!\left(\frac{Q^\top K}{\sqrt{C'}}\right) \in \mathbb{R}^{(HW) \times (HW)}$$
+          </div>
+          <p>Every spatial position attends to every other spatial position — this is where local CNN features become globally aware.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">4</div>
+          <span class="step-title">Apply weights to V → $C' \times H \times W$, project → $C \times H \times W$</span>
+        </div>
+        <div class="step-body">
+          <p>Multiply attention weights by values, then a final $1 \times 1$ conv brings dimension back to $C$:</p>
+          <div class="eq-box eq tr">
+            $$\text{Out} = \text{Conv}_{1\times1}(A \cdot V) \in \mathbb{R}^{C \times H \times W}$$
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">5</div>
+          <span class="step-title">Residual connection → final output</span>
+        </div>
+        <div class="step-body">
+          <p>The self-attention output is added back to the original CNN features (residual connection), just like in the full Transformer:</p>
+          <div class="eq-box eq tr">
+            $$\text{Final} = F + \text{Out} \in \mathbb{R}^{C \times H \times W}$$
+          </div>
+          <p>This ensures the model only needs to <em>learn the difference</em> from the original features, making training more stable.</p>
+        </div>
+      </div>
+    </div>
+    <div class="callout" style="border-color:var(--accent3); background:rgba(106,247,184,.05);">
+      <strong style="color:var(--accent3);">Why this matters:</strong> CNN alone only has a local receptive field. Self-attention makes every pixel/patch aware of the entire image in a single layer. This hybrid approach is used in models like SAGAN and predates pure Vision Transformers (ViT).
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: POSITIONAL ENCODING
+════════════════════════════════════════════ -->
+<section id="tr-posenc" class="section">
+  <div class="card">
+    <h2>📍 The Positional Encoding Problem</h2>
+    <p>Self-attention is <strong>permutation equivariant</strong>: shuffle the inputs, get the same outputs shuffled. This means the model has <em>no idea</em> about token order by default.</p>
+    <p>But order is crucial for language! "The cat ate the fish" ≠ "The fish ate the cat".</p>
+    <div class="callout" style="border-color: var(--tr-color); background: rgba(247,194,106,.06);">
+      <strong style="color: var(--tr-color);">Solution:</strong> Add a <em>positional encoding</em> vector $p_j$ to each input vector $x_j$ before the attention computation:
+      $$\tilde{x}_j = x_j + p_j$$
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>〽️ Sinusoidal Positional Encodings</h2>
+    <p>The original Transformer used fixed sinusoidal encodings. For position $j$ and dimension index $k$:</p>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Sinusoidal Positional Encoding (even dims)</div>
+      $$\text{PE}(j, 2k) = \sin\!\left(\frac{j}{10000^{2k/d}}\right)$$
+    </div>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Sinusoidal Positional Encoding (odd dims)</div>
+      $$\text{PE}(j, 2k+1) = \cos\!\left(\frac{j}{10000^{2k/d}}\right)$$
+    </div>
+    <ul>
+      <li>$j$ = position in the sequence (0, 1, 2, …)</li>
+      <li>$k$ = dimension index within the encoding vector (0 to $d/2 - 1$)</li>
+      <li>$d$ = model dimension (e.g., 512)</li>
+      <li>Each position gets a unique $d$-dimensional encoding</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🤔 Why Sinusoidal?</h2>
+    <ul>
+      <li><strong>Unique per position:</strong> Each position gets a different encoding</li>
+      <li><strong>Smooth relative offsets:</strong> $\text{PE}(j + \delta)$ can be expressed as a linear function of $\text{PE}(j)$ → the model can learn to reason about relative positions</li>
+      <li><strong>Generalizes to unseen lengths:</strong> Since it's a deterministic function, it works for sequences longer than those seen during training</li>
+      <li><strong>No learnable parameters needed</strong></li>
+    </ul>
+
+    <h3>Learned vs. Fixed Positional Encodings</h3>
+    <table>
+      <tr><th></th><th>Sinusoidal (Fixed)</th><th>Learned</th></tr>
+      <tr><td>Parameters</td><td>None</td><td>Adds parameters per position</td></tr>
+      <tr><td>Generalizes beyond training length</td><td>✅ Yes</td><td>❌ No</td></tr>
+      <tr><td>Performance</td><td>Similar in practice</td><td>Similar in practice</td></tr>
+      <tr><td>Used in</td><td>Original Transformer</td><td>BERT, GPT-1</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: TRANSFORMER ARCHITECTURE
+════════════════════════════════════════════ -->
+<section id="tr-arch" class="section">
+  <div class="card">
+    <h2>🏗️ The Transformer Block</h2>
+    <p>A single Transformer block consists of two sub-layers, each with a residual connection and layer normalization:</p>
+    <div class="transformer-block">
+      <div class="block-layer">
+        <span class="block-icon">📥</span>
+        <div><strong>Input</strong>: set of token vectors $x_1, \ldots, x_T$ (with positional encoding added)</div>
+      </div>
+      <div class="block-arrow">↓</div>
+      <div class="block-layer" style="border-left: 3px solid var(--tr-color);">
+        <span class="block-icon">🔍</span>
+        <div><strong>Multi-Head Self-Attention</strong> + Residual + LayerNorm<br>
+        <small style="color:var(--text-dim);">Each token attends to all other tokens</small></div>
+      </div>
+      <div class="block-arrow">↓</div>
+      <div class="block-layer" style="border-left: 3px solid var(--accent3);">
+        <span class="block-icon">🧮</span>
+        <div><strong>MLP (Feed-Forward Network)</strong> + Residual + LayerNorm<br>
+        <small style="color:var(--text-dim);">Applied independently to each token: 2 FC layers with ReLU</small></div>
+      </div>
+      <div class="block-arrow">↓</div>
+      <div class="block-layer">
+        <span class="block-icon">📤</span>
+        <div><strong>Output</strong>: set of refined token vectors $y_1, \ldots, y_T$</div>
+      </div>
+    </div>
+    <div class="eq-box eq tr">
+      <div class="eq-label">Transformer Block (formal)</div>
+      $$z_i = \text{LayerNorm}\!\left(x_i + \text{MultiHead}(x_i)\right)$$
+      $$y_i = \text{LayerNorm}\!\left(z_i + \text{MLP}(z_i)\right)$$
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📚 Stacking Blocks</h2>
+    <p>The full Transformer stacks $N$ identical blocks. Each block refines the token representations.</p>
+    <ul>
+      <li>Original Vaswani et al. (2017): <strong>$N = 12$ blocks</strong></li>
+      <li>Hidden size: <strong>$D = 512$</strong></li>
+      <li>Attention heads: <strong>$H = 6$</strong></li>
+    </ul>
+    <div class="callout" style="border-color: var(--accent3); background: rgba(106,247,184,.05);">
+      <strong style="color: var(--accent3);">Key property:</strong> Because attention and MLP operations are applied independently per token, the entire computation is <strong>highly parallelizable</strong> — GPU-friendly and fast!
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔑 Why Residual Connections &amp; Layer Normalization?</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">R</div>
+          <span class="step-title">Residual Connections: $y = x + f(x)$</span>
+        </div>
+        <div class="step-body">
+          <p>Adding the input directly to the output ($x + f(x)$) allows gradients to flow directly through many layers without passing through the transformation $f$. This solves the <em>vanishing gradient</em> problem in deep networks (same idea as ResNets in computer vision).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num tr">L</div>
+          <span class="step-title">Layer Normalization</span>
+        </div>
+        <div class="step-body">
+          <p>Normalizes the activations <em>across the feature dimension</em> (not the batch). This stabilizes training by keeping activations in a healthy range, especially important for deep stacks of Transformer blocks.</p>
+          <div class="eq-box eq tr">
+            $$\text{LayerNorm}(x) = \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} \cdot \gamma + \beta$$
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Summary of Key Properties</h2>
+    <table>
+      <tr><th>Property</th><th>Value/Description</th></tr>
+      <tr><td>Processing</td><td>Fully parallel across all token positions</td></tr>
+      <tr><td>Context window</td><td>Global — every token sees every other token</td></tr>
+      <tr><td>Positional info</td><td>Injected via positional encoding (not built-in)</td></tr>
+      <tr><td>Attention complexity</td><td>$O(T^2 \cdot D)$ per layer — quadratic in sequence length $T$</td></tr>
+      <tr><td>Building blocks</td><td>Multi-head self-attention + MLP + ResNorm</td></tr>
+      <tr><td>Original hyperparams</td><td>12 blocks, $D=512$, $H=6$ heads</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: COMPARISON
+════════════════════════════════════════════ -->
+<section id="compare" class="section">
+  <div class="card">
+    <h2>⚖️ RNN vs. Transformer: The Full Picture</h2>
+    <table>
+      <tr><th>Aspect</th><th>RNN</th><th>Transformer</th></tr>
+      <tr><td>Processing order</td><td>Sequential (step-by-step)</td><td>Parallel (all at once)</td></tr>
+      <tr><td>Long-range dependencies</td><td>❌ Hard (~10 steps)</td><td>✅ Easy (direct attention)</td></tr>
+      <tr><td>Training speed</td><td>Slow (sequential)</td><td>Fast (parallelizable)</td></tr>
+      <tr><td>Memory of context</td><td>Hidden state (compressed)</td><td>Full attention over all tokens</td></tr>
+      <tr><td>Positional info</td><td>Built-in (via recurrence)</td><td>Must be added (positional encoding)</td></tr>
+      <tr><td>Model size vs. sequence length</td><td>Constant</td><td>Constant (but attention is quadratic)</td></tr>
+      <tr><td>Gradient flow</td><td>Through time (vanishing/exploding)</td><td>Short (residual connections)</td></tr>
+      <tr><td>Best for short sequences</td><td>✅ Competitive</td><td>✅ Excellent</td></tr>
+      <tr><td>Best for long sequences</td><td>❌ Struggles</td><td>✅ Excels (up to context limit)</td></tr>
+      <tr><td>Famous models</td><td>LSTM, GRU</td><td>GPT, BERT, T5, ViT, LLaMA</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🔗 How the Lectures Connect</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">1</div>
+          <span class="step-title">The link: Attention was born in RNNs</span>
+        </div>
+        <div class="step-body">
+          <p>Attention was first introduced as an add-on to RNN Seq2Seq models (Bahdanau et al., 2014) to solve the bottleneck problem. The Transformer then took the insight further: what if we used <em>only</em> attention — no RNN at all?</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">2</div>
+          <span class="step-title">Transformer's self-attention is a generalization</span>
+        </div>
+        <div class="step-body">
+          <p>In RNN attention: the query comes from the decoder state, keys/values from encoder states (cross-attention). In Transformer self-attention: queries, keys, values all come from the same sequence. Same math, different source.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-header" onclick="toggleStep(this)">
+          <div class="step-num">3</div>
+          <span class="step-title">Both lectures build toward LLMs</span>
+        </div>
+        <div class="step-body">
+          <p>RNNs → Seq2Seq → Attention → Transformer → LLMs (GPT, BERT, LLaMA). Each step solved problems of the previous. Today's most powerful AI systems are based on stacked Transformer blocks at massive scale.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     SECTION: QUIZ
+════════════════════════════════════════════ -->
+<section id="quiz" class="section">
+  <div class="card">
+    <h2>🧪 Test Your Understanding</h2>
+    <p>Answer all questions, then check your score!</p>
+  </div>
+
+  <div id="quiz-container"></div>
+
+  <button onclick="submitQuiz()" id="quiz-submit-btn" style="
+    display:block; width:100%; padding:1rem; margin-top:1rem;
+    background: linear-gradient(135deg, var(--accent), var(--tr-color));
+    border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700;
+    cursor:pointer; transition: opacity .2s;
+  ">Submit Quiz</button>
+  <div id="quiz-result" style="display:none;" class="card">
+    <div class="quiz-score" id="score-display"></div>
+    <p id="score-message" style="text-align:center; color:var(--text-dim);"></p>
+  </div>
+</section>
+
+<!-- Scroll to top -->
+<button class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// ─── TAB NAVIGATION ─────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ─── ACCORDION STEPS ────────────────────────────────────────────
+function toggleStep(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+// Open first step in each section by default on load
+document.querySelectorAll('.step').forEach(step => {
+  const body = step.querySelector('.step-body');
+  if (body && step === step.parentElement.querySelector('.step')) {
+    body.classList.add('open');
+  }
+});
+
+// ─── ATTENTION DEMO ─────────────────────────────────────────────
+const inputWords = ['The', 'cat', 'sat', 'on', 'the', 'mat'];
+
+function showAttn(el, word, weights) {
+  document.querySelectorAll('#output-tokens .word-token').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  const container = document.getElementById('attn-bars');
+  container.innerHTML = '';
+  weights.forEach((w, i) => {
+    const pct = Math.round(w * 100);
+    const wrap = document.createElement('div');
+    wrap.className = 'attn-bar-wrap';
+    wrap.innerHTML = `
+      <div class="attn-bar-outer">
+        <div class="attn-bar-inner" style="height:${pct}%"></div>
+      </div>
+      <div class="attn-bar-label">${inputWords[i]}</div>
+      <div class="attn-bar-pct">${pct}%</div>
+    `;
+    container.appendChild(wrap);
+  });
+}
+
+// ─── QUIZ ────────────────────────────────────────────────────────
+const questions = [
+  {
+    q: "What does the hidden state $h_t$ in an RNN represent?",
+    opts: [
+      "The input at time step $t$",
+      "A compressed memory of all previous inputs up to time $t$",
+      "The output prediction at time $t$",
+      "The gradient during backpropagation"
+    ],
+    answer: 1,
+    explain: "The hidden state $h_t = \\sigma(W_h h_{t-1} + W_x x_t + b)$ combines the previous hidden state (memory) with the current input — it acts as the network's memory."
+  },
+  {
+    q: "What is the main purpose of Backpropagation Through Time (BPTT)?",
+    opts: [
+      "To process sequences in parallel",
+      "To adjust RNN weights by unrolling the network over time steps and computing gradients",
+      "To add positional information to sequences",
+      "To normalize hidden states across the batch"
+    ],
+    answer: 1,
+    explain: "BPTT unrolls the RNN across all time steps and applies backpropagation through each step to update $W_h$ and $W_x$. This creates a long gradient chain — the source of vanishing/exploding gradient problems."
+  },
+  {
+    q: "In an Encoder–Decoder (Seq2Seq) model WITHOUT attention, what is the bottleneck?",
+    opts: [
+      "The decoder must process tokens sequentially",
+      "The encoder must see all tokens before starting",
+      "The entire input sequence must be compressed into a single fixed-size context vector",
+      "The model cannot handle variable-length outputs"
+    ],
+    answer: 2,
+    explain: "Without attention, the encoder's last hidden state $h_T$ must carry all information about the input — information gets lost for long sequences. Attention solves this by giving the decoder access to all encoder states."
+  },
+  {
+    q: "Why do we divide the dot product $QK^\\top$ by $\\sqrt{D}$ in scaled dot-product attention?",
+    opts: [
+      "To speed up computation",
+      "To ensure the output has unit norm",
+      "To prevent the softmax from becoming too peaked due to high-dimensional dot products having large variance",
+      "To make the attention weights sum to zero"
+    ],
+    answer: 2,
+    explain: "As dimension $D$ grows, dot products grow in magnitude (variance $= D$). This causes softmax to collapse to near one-hot distributions. Dividing by $\\sqrt{D}$ brings variance back to 1, keeping attention distributions soft and gradients healthy."
+  },
+  {
+    q: "What makes self-attention different from general (cross) attention?",
+    opts: [
+      "Self-attention uses multiple heads; general attention uses one",
+      "In self-attention, queries, keys, and values all come from the same input sequence",
+      "Self-attention doesn't require a softmax operation",
+      "General attention processes tokens sequentially"
+    ],
+    answer: 1,
+    explain: "In general attention (e.g., encoder–decoder), Q comes from the decoder and K/V from the encoder. In self-attention, Q, K, V all come from the same input $X$ (via learned projections $W_Q, W_K, W_V$)."
+  },
+  {
+    q: "Why does the Transformer need positional encoding?",
+    opts: [
+      "To reduce the dimensionality of input embeddings",
+      "Because self-attention is permutation equivariant and doesn't inherently capture token order",
+      "To speed up the attention computation",
+      "To prevent overfitting on short sequences"
+    ],
+    answer: 1,
+    explain: "Self-attention is permutation equivariant — shuffling the input gives the same output shuffled. Without positional encoding, the model can't distinguish between 'The cat ate the fish' and 'The fish ate the cat'."
+  },
+  {
+    q: "What does masked self-attention accomplish in the Transformer decoder?",
+    opts: [
+      "It prevents the model from attending to padding tokens",
+      "It sets future token alignment scores to $-\\infty$ so each position can only attend to previous positions",
+      "It randomly drops attention weights during training (like dropout)",
+      "It masks the input embeddings for regularization"
+    ],
+    answer: 1,
+    explain: "Masked self-attention sets scores for positions $j > i$ to $-\\infty$ before softmax. This ensures position $i$ only attends to positions $\\leq i$ — critical for autoregressive generation where future tokens haven't been generated yet."
+  },
+  {
+    q: "In the original Transformer (Vaswani et al. 2017), how many attention heads were used?",
+    opts: ["2", "4", "6", "12"],
+    answer: 2,
+    explain: "The original Transformer used $H = 6$ attention heads with model dimension $D = 512$ (so each head had dimension 512/6 ≈ 85, rounded to 64 in practice) and $N = 12$ Transformer blocks."
+  },
+  {
+    q: "How does multi-head attention improve over single-head attention?",
+    opts: [
+      "It reduces computation time by half",
+      "Each head can specialize in different types of relationships, capturing richer and more diverse context",
+      "It eliminates the need for positional encoding",
+      "It allows the model to process longer sequences"
+    ],
+    answer: 1,
+    explain: "Each attention head attends to the input independently with its own $W_Q^{(i)}, W_K^{(i)}, W_V^{(i)}$. Different heads can learn different patterns (e.g., syntactic vs. semantic relationships). Outputs are concatenated and projected."
+  },
+  {
+    q: "Which of these is a fundamental advantage of Transformers over RNNs for long sequences?",
+    opts: [
+      "Transformers use fewer parameters",
+      "Transformers process all tokens in parallel, enabling efficient long-range dependency modeling",
+      "Transformers don't need training data",
+      "Transformers are simpler to implement"
+    ],
+    answer: 1,
+    explain: "RNNs process tokens sequentially (can't parallelize) and struggle with long-range dependencies due to vanishing gradients. Transformers compute attention across all positions simultaneously — every token directly attends to every other token in $O(1)$ steps of processing."
+  }
+];
+
+let selectedAnswers = new Array(questions.length).fill(null);
+let quizSubmitted = false;
+
+function buildQuiz() {
+  const container = document.getElementById('quiz-container');
+  questions.forEach((q, qi) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-card';
+    div.innerHTML = `
+      <div class="quiz-q">${qi+1}. ${q.q}</div>
+      <div class="quiz-opts" id="opts-${qi}">
+        ${q.opts.map((opt, oi) => `
+          <button class="quiz-opt" onclick="selectAnswer(${qi}, ${oi}, this)">${opt}</button>
+        `).join('')}
+      </div>
+      <div class="quiz-feedback" id="feedback-${qi}"></div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function selectAnswer(qi, oi, btn) {
+  if (quizSubmitted) return;
+  selectedAnswers[qi] = oi;
+  document.querySelectorAll(`#opts-${qi} .quiz-opt`).forEach((b, i) => {
+    b.style.borderColor = i === oi ? 'var(--accent)' : '';
+    b.style.background = i === oi ? 'rgba(124,106,247,.15)' : '';
+  });
+}
+
+function submitQuiz() {
+  if (quizSubmitted) return;
+  quizSubmitted = true;
+  let score = 0;
+  questions.forEach((q, qi) => {
+    const sel = selectedAnswers[qi];
+    const opts = document.querySelectorAll(`#opts-${qi} .quiz-opt`);
+    const fb = document.getElementById(`feedback-${qi}`);
+    opts.forEach(b => b.disabled = true);
+    opts[q.answer].classList.add('correct');
+    if (sel === q.answer) {
+      score++;
+      fb.textContent = '✅ Correct! ' + q.explain;
+      fb.className = 'quiz-feedback show ok';
+    } else {
+      if (sel !== null) opts[sel].classList.add('wrong');
+      fb.textContent = '❌ ' + q.explain;
+      fb.className = 'quiz-feedback show fail';
+    }
+  });
+  document.getElementById('quiz-submit-btn').style.display = 'none';
+  const result = document.getElementById('quiz-result');
+  result.style.display = 'block';
+  const pct = Math.round(score / questions.length * 100);
+  document.getElementById('score-display').textContent = `${score} / ${questions.length} — ${pct}%`;
+  const msgs = [
+    [0, 3, "Keep reviewing — go back through the sections! You've got this 💪"],
+    [4, 6, "Good progress! A few more rounds and you'll master it 🎯"],
+    [7, 8, "Great job! You understand the core concepts well 🌟"],
+    [9, 10, "Outstanding! You've fully mastered RNNs & Transformers 🏆"]
+  ];
+  const msg = msgs.find(([lo, hi]) => score >= lo && score <= hi);
+  document.getElementById('score-message').textContent = msg ? msg[2] : '';
+}
+
+buildQuiz();
+
+// ─── ATTENTION HEATMAP ───────────────────────────────────────────
+const hmData = [
+  { out: "L'accord",      weights: [0.7, 0.1, 0.05, 0.05, 0.03, 0.02, 0.02, 0.01, 0.01, 0.01] },
+  { out: "sur",           weights: [0.05, 0.05, 0.75, 0.05, 0.03, 0.02, 0.02, 0.01, 0.01, 0.01] },
+  { out: "la",            weights: [0.05, 0.05, 0.05, 0.65, 0.05, 0.05, 0.05, 0.02, 0.01, 0.02] },
+  { out: "zone",          weights: [0.02, 0.02, 0.02, 0.02, 0.15, 0.45, 0.25, 0.03, 0.02, 0.02] },
+  { out: "économique",    weights: [0.02, 0.02, 0.02, 0.02, 0.35, 0.45, 0.05, 0.03, 0.02, 0.02] },
+  { out: "européenne",    weights: [0.02, 0.02, 0.02, 0.02, 0.05, 0.05, 0.75, 0.03, 0.02, 0.02] },
+  { out: "a été signé",   weights: [0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.80, 0.03, 0.03] },
+  { out: "en août",       weights: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.05, 0.82, 0.06] },
+  { out: "1992",          weights: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.02, 0.05, 0.86] },
+];
+
+function buildHeatmap() {
+  const tbody = document.getElementById('heatmap-body');
+  if (!tbody) return;
+  hmData.forEach(row => {
+    const tr = document.createElement('tr');
+    row.weights.forEach(w => {
+      const td = document.createElement('td');
+      const v = Math.round(w * 255);
+      td.style.cssText = `background:rgba(124,106,247,${w.toFixed(2)});padding:.35rem .5rem;text-align:center;font-size:.72rem;color:${w>0.4?'#fff':'#9ea3c0'}`;
+      td.textContent = w >= 0.05 ? (w*100).toFixed(0)+'%' : '';
+      tr.appendChild(td);
+    });
+    const th = document.createElement('th');
+    th.textContent = row.out;
+    th.style.cssText = 'padding:.35rem .7rem;text-align:left;font-weight:600;color:var(--accent2);white-space:nowrap;';
+    tr.appendChild(th);
+    tbody.appendChild(tr);
+  });
+}
+buildHeatmap();
+</script>
+</body>
+</html>
