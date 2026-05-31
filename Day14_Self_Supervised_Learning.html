@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Day 14 — Self-Supervised Learning</title>
+
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(','\\)']],
+      displayMath: [['$$','$$']],
+      packages: {'[+]': ['ams']}
+    },
+    options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --card: #1e2632;
+    --accent: #58a6ff;
+    --accent2: #bc8cff;
+    --accent3: #3fb950;
+    --accent4: #f0883e;
+    --accent5: #ff7b72;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --border: #30363d;
+    --glow: rgba(88,166,255,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f35 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 36px 40px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(88,166,255,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  header .badge {
+    display: inline-block;
+    background: rgba(88,166,255,0.15);
+    border: 1px solid rgba(88,166,255,0.3);
+    color: var(--accent);
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 4px 14px; border-radius: 20px; margin-bottom: 12px;
+  }
+  header h1 {
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 8px;
+  }
+  header p.sub { color: var(--muted); font-size: 0.9rem; }
+
+  /* ── TAB BAR ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  nav::-webkit-scrollbar { height: 3px; }
+  nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  nav ul { list-style: none; display: flex; min-width: max-content; }
+  nav a {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.8rem; font-weight: 500;
+    padding: 13px 16px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all .18s;
+    cursor: pointer;
+  }
+  nav a:hover { color: var(--text); }
+  nav a.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(88,166,255,0.05);
+  }
+  nav a .tab-icon { font-size: 0.95rem; }
+
+  /* ── PAGES ── */
+  .page { display: none; max-width: 1050px; margin: 0 auto; padding: 48px 24px 64px; animation: fadeIn .3s ease; }
+  .page.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 36px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-header .ph-icon {
+    font-size: 1.8rem;
+    width: 52px; height: 52px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .page-header h2 { font-size: 1.6rem; font-weight: 800; color: var(--text); }
+  .page-header p { color: var(--muted); font-size: 0.88rem; margin-top: 2px; }
+
+  /* ── TYPOGRAPHY ── */
+  h3 { font-size: 1.1rem; font-weight: 700; color: var(--accent); margin: 28px 0 12px; }
+  p  { color: #c9d1d9; margin-bottom: 14px; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 26px; margin-bottom: 18px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .card:hover { border-color: rgba(88,166,255,0.35); box-shadow: 0 0 18px var(--glow); }
+
+  /* ── GRIDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media(max-width:720px) { .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+
+  /* ── BOXES ── */
+  .box { border-radius: 12px; padding: 18px 22px; margin-bottom: 16px; }
+  .box-blue   { background:rgba(88,166,255,0.07);  border:1px solid rgba(88,166,255,0.25);  }
+  .box-purple { background:rgba(188,140,255,0.07); border:1px solid rgba(188,140,255,0.25); }
+  .box-green  { background:rgba(63,185,80,0.07);   border:1px solid rgba(63,185,80,0.25);   }
+  .box-orange { background:rgba(240,136,62,0.07);  border:1px solid rgba(240,136,62,0.25);  }
+  .box-red    { background:rgba(255,123,114,0.07); border:1px solid rgba(255,123,114,0.25); }
+
+  .box-title { font-weight:700; font-size:0.78rem; letter-spacing:.09em; text-transform:uppercase; margin-bottom:8px; }
+  .box-blue .box-title   { color:var(--accent);  }
+  .box-purple .box-title { color:var(--accent2); }
+  .box-green .box-title  { color:var(--accent3); }
+  .box-orange .box-title { color:var(--accent4); }
+  .box-red .box-title    { color:var(--accent5); }
+
+  /* ── EQUATION ── */
+  .eq-block {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent2);
+    border-radius: 0 10px 10px 0;
+    padding: 18px 24px; margin: 18px 0; overflow-x: auto;
+  }
+  .eq-label { font-size:0.75rem; color:var(--accent2); font-weight:700; letter-spacing:.09em; text-transform:uppercase; margin-bottom:10px; }
+
+  /* ── STEPS ── */
+  .steps { counter-reset:step; list-style:none; }
+  .steps li {
+    counter-increment: step;
+    position: relative; padding: 13px 14px 13px 52px;
+    margin-bottom: 9px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .steps li::before {
+    content: counter(step);
+    position:absolute; left:13px; top:50%; transform:translateY(-50%);
+    width:26px; height:26px;
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff; font-weight:700; font-size:0.78rem;
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+  }
+
+  /* ── BULLET LIST ── */
+  .blist { list-style:none; padding:0; }
+  .blist li {
+    padding:8px 0 8px 26px; position:relative;
+    color:#c9d1d9; border-bottom:1px solid rgba(48,54,61,0.5);
+  }
+  .blist li:last-child { border-bottom:none; }
+  .blist li::before { content:'▸'; position:absolute; left:0; color:var(--accent); font-size:.88em; }
+
+  /* ── BLOCKQUOTE ── */
+  blockquote {
+    border-left:4px solid var(--accent4); background:rgba(240,136,62,0.06);
+    border-radius:0 12px 12px 0; padding:16px 22px; margin:18px 0;
+    font-style:italic; color:var(--text); font-size:1rem;
+  }
+  blockquote cite { display:block; margin-top:6px; font-size:.82rem; color:var(--accent4); font-style:normal; font-weight:700; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x:auto; border-radius:12px; margin:18px 0; border:1px solid var(--border); }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  thead { background:rgba(88,166,255,0.1); }
+  th { padding:11px 15px; text-align:left; color:var(--accent); font-weight:700; border-bottom:1px solid var(--border); }
+  td { padding:10px 15px; border-bottom:1px solid rgba(48,54,61,0.5); color:#c9d1d9; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(88,166,255,0.04); }
+
+  /* ── FLOW ── */
+  .flow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; margin:18px 0; }
+  .flow-node {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:10px; padding:10px 16px;
+    font-size:.82rem; font-weight:600; text-align:center; min-width:100px;
+  }
+  .flow-arrow { color:var(--accent); font-size:1.3rem; font-weight:700; }
+  .flow-node.blue   { border-color:var(--accent);  color:var(--accent);  background:rgba(88,166,255,0.07);  }
+  .flow-node.purple { border-color:var(--accent2); color:var(--accent2); background:rgba(188,140,255,0.07); }
+  .flow-node.green  { border-color:var(--accent3); color:var(--accent3); background:rgba(63,185,80,0.07);   }
+  .flow-node.orange { border-color:var(--accent4); color:var(--accent4); background:rgba(240,136,62,0.07);  }
+
+  /* ── ACCORDION ── */
+  .accordion { margin-bottom:8px; }
+  .acc-btn {
+    width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:10px; padding:13px 17px;
+    color:var(--text); font-family:inherit; font-size:.92rem; font-weight:600;
+    cursor:pointer; text-align:left;
+    display:flex; justify-content:space-between; align-items:center;
+    transition:all .18s;
+  }
+  .acc-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .acc-btn.open { border-bottom-left-radius:0; border-bottom-right-radius:0; border-color:var(--accent); }
+  .acc-chevron { transition:transform .25s; display:inline-block; }
+  .acc-btn.open .acc-chevron { transform:rotate(180deg); }
+  .acc-body {
+    background:var(--surface); border:1px solid var(--accent);
+    border-top:none; border-radius:0 0 10px 10px;
+    padding:0 18px; max-height:0; overflow:hidden;
+    transition:max-height .35s ease, padding .25s;
+  }
+  .acc-body.open { max-height:1800px; padding:18px; }
+
+  /* ── TAG ── */
+  .tag { display:inline-block; font-size:.72rem; font-weight:700; padding:2px 9px; border-radius:20px; margin:2px; }
+  .tag-blue   { background:rgba(88,166,255,0.15);  color:var(--accent);  }
+  .tag-purple { background:rgba(188,140,255,0.15); color:var(--accent2); }
+  .tag-green  { background:rgba(63,185,80,0.15);   color:var(--accent3); }
+  .tag-orange { background:rgba(240,136,62,0.15);  color:var(--accent4); }
+  .tag-red    { background:rgba(255,123,114,0.15); color:var(--accent5); }
+
+  /* ── INSIGHT ── */
+  .insight {
+    background:linear-gradient(135deg,rgba(88,166,255,0.06),rgba(188,140,255,0.06));
+    border:1px solid rgba(88,166,255,0.22); border-radius:14px;
+    padding:18px 22px; margin:18px 0;
+    display:flex; gap:14px; align-items:flex-start;
+  }
+  .insight-icon { font-size:1.4rem; flex-shrink:0; margin-top:2px; }
+  .insight-text { color:#c9d1d9; }
+  .insight-text strong { color:var(--text); }
+
+  /* ── TIMELINE ── */
+  .timeline { position:relative; padding-left:24px; }
+  .timeline::before { content:''; position:absolute; left:6px; top:4px; bottom:0; width:2px; background:var(--border); }
+  .tl-item { position:relative; padding:0 0 22px 20px; }
+  .tl-item::before {
+    content:''; position:absolute; left:-18px; top:6px;
+    width:11px; height:11px; border-radius:50%;
+    background:var(--accent); box-shadow:0 0 0 3px rgba(88,166,255,0.2);
+  }
+  .tl-title { font-weight:700; color:var(--text); margin-bottom:3px; }
+  .tl-body  { color:var(--muted); font-size:.88rem; }
+
+  /* ── QUIZ ── */
+  .quiz-score-bar {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:18px 22px; margin-bottom:22px; text-align:center;
+  }
+  .score-display { font-size:2rem; font-weight:800; color:var(--accent); }
+  .score-label { color:var(--muted); font-size:.85rem; margin-top:3px; }
+  .prog-track { background:var(--bg); border-radius:20px; height:7px; margin-top:10px; overflow:hidden; }
+  .prog-fill { height:100%; border-radius:20px; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .5s ease; width:0%; }
+
+  .quiz-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:18px; }
+  .quiz-q { font-weight:600; font-size:.95rem; margin-bottom:14px; display:flex; gap:10px; align-items:flex-start; }
+  .qnum {
+    background:linear-gradient(135deg,var(--accent2),var(--accent));
+    color:#fff; font-size:.75rem; font-weight:700;
+    width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px;
+  }
+  .quiz-options { display:flex; flex-direction:column; gap:7px; }
+  .q-btn {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:10px 15px; color:var(--text); font-size:.88rem;
+    cursor:pointer; text-align:left; transition:all .16s; font-family:inherit;
+  }
+  .q-btn:hover:not(:disabled) { border-color:var(--accent); background:rgba(88,166,255,0.06); }
+  .q-btn.correct { border-color:var(--accent3)!important; background:rgba(63,185,80,0.1)!important; color:var(--accent3); }
+  .q-btn.wrong   { border-color:var(--accent5)!important; background:rgba(255,123,114,0.1)!important; color:var(--accent5); }
+  .quiz-fb { margin-top:10px; padding:10px 13px; border-radius:8px; font-size:.85rem; display:none; }
+  .quiz-fb.show { display:block; }
+  .quiz-fb.ok   { background:rgba(63,185,80,0.08);  border:1px solid rgba(63,185,80,0.3);  color:var(--accent3); }
+  .quiz-fb.fail { background:rgba(255,123,114,0.08); border:1px solid rgba(255,123,114,0.3); color:var(--accent5); }
+
+  /* ── NAV ARROWS ── */
+  .page-nav {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:48px; padding-top:24px; border-top:1px solid var(--border);
+  }
+  .nav-arrow {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:10px; padding:10px 20px;
+    color:var(--text); font-size:.88rem; font-weight:600;
+    cursor:pointer; transition:all .18s; display:flex; align-items:center; gap:8px;
+    font-family:inherit;
+  }
+  .nav-arrow:hover { border-color:var(--accent); color:var(--accent); }
+  .nav-arrow:disabled { opacity:.3; cursor:default; pointer-events:none; }
+
+  /* ── PROGRESS DOTS ── */
+  .progress-dots { display:flex; gap:7px; align-items:center; }
+  .dot {
+    width:8px; height:8px; border-radius:50%;
+    background:var(--border); transition:all .25s; cursor:pointer;
+  }
+  .dot.active { background:var(--accent); transform:scale(1.4); }
+  .dot:hover { background:var(--muted); }
+
+  /* compare */
+  .c-good { color:var(--accent3); font-weight:600; }
+  .c-bad  { color:var(--accent5); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Day 14 · KAUST Academy · June 12, 2025</div>
+  <h1>Self-Supervised Learning</h1>
+  <p class="sub">Naeemullah Khan &nbsp;·&nbsp; KAUST Academy &nbsp;·&nbsp; Interactive Study Guide</p>
+</header>
+
+<!-- TAB BAR -->
+<nav id="tabBar">
+  <ul>
+    <li><a class="tab-link active" data-page="p-motivation"   onclick="showPage('p-motivation',this)">  <span class="tab-icon">🎯</span> Motivation</a></li>
+    <li><a class="tab-link"        data-page="p-intro"        onclick="showPage('p-intro',this)">        <span class="tab-icon">📚</span> Introduction</a></li>
+    <li><a class="tab-link"        data-page="p-taxonomy"     onclick="showPage('p-taxonomy',this)">     <span class="tab-icon">🗂️</span> Pretext Taxonomy</a></li>
+    <li><a class="tab-link"        data-page="p-denoising"    onclick="showPage('p-denoising',this)">    <span class="tab-icon">🔧</span> Denoising AE</a></li>
+    <li><a class="tab-link"        data-page="p-context"      onclick="showPage('p-context',this)">      <span class="tab-icon">🖼️</span> Context Encoders</a></li>
+    <li><a class="tab-link"        data-page="p-views"        onclick="showPage('p-views',this)">        <span class="tab-icon">👁️</span> View Prediction</a></li>
+    <li><a class="tab-link"        data-page="p-patches"      onclick="showPage('p-patches',this)">      <span class="tab-icon">🧩</span> Patch Positions</a></li>
+    <li><a class="tab-link"        data-page="p-rotation"     onclick="showPage('p-rotation',this)">     <span class="tab-icon">🔄</span> Rotation</a></li>
+    <li><a class="tab-link"        data-page="p-cpc"          onclick="showPage('p-cpc',this)">          <span class="tab-icon">🔮</span> CPC</a></li>
+    <li><a class="tab-link"        data-page="p-instance"     onclick="showPage('p-instance',this)">     <span class="tab-icon">🎯</span> Instance Discrim.</a></li>
+    <li><a class="tab-link"        data-page="p-moco"         onclick="showPage('p-moco',this)">         <span class="tab-icon">⚡</span> MoCo</a></li>
+    <li><a class="tab-link"        data-page="p-quiz"         onclick="showPage('p-quiz',this)">         <span class="tab-icon">🧠</span> Quiz</a></li>
+    <li><a class="tab-link"        data-page="p-refs"         onclick="showPage('p-refs',this)">         <span class="tab-icon">📖</span> References</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════ PAGE 1: MOTIVATION ═══════════════════════ -->
+<div class="page active" id="p-motivation">
+  <div class="page-header">
+    <div class="ph-icon">🎯</div>
+    <div><h2>Motivation</h2><p>Why do we need self-supervised learning?</p></div>
+  </div>
+
+  <blockquote>
+    "Give a robot a label and you feed it for a moment; teach a robot to label and you feed it for a lifetime."
+    <cite>— Pierre Sermanet</cite>
+  </blockquote>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="box-title" style="color:var(--accent5)">The Problem</div>
+      <ul class="blist">
+        <li>Annotating data is <strong>expensive and slow</strong></li>
+        <li>Each new task often needs a brand-new labeled dataset</li>
+        <li>Requires manuals, annotators, GUIs, storage pipelines</li>
+        <li>High-quality labels can be impractical (medicine, legal)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="box-title" style="color:var(--accent3)">The Opportunity</div>
+      <ul class="blist">
+        <li>The internet has <strong>vast unlabeled data</strong> — images, video, text</li>
+        <li>SSL pre-trains models on this data to extract reusable features</li>
+        <li>Works across vision, language, audio, time-series</li>
+        <li>Mimics how animals and babies learn from the world</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-icon">🌍</div>
+    <div class="insight-text">
+      <strong>The core insight:</strong> Instead of asking humans to label data, we design tasks where the <em>data labels itself</em>. Hide part of an image — the model predicts it. The "answer" already exists in the original image; no human annotation needed.
+    </div>
+  </div>
+
+  <h3>Evolution of the Field</h3>
+  <div class="timeline">
+    <div class="tl-item"><div class="tl-title">Generative Models (VAEs, GANs)</div><div class="tl-body">Learn data distributions; reconstruct or generate data</div></div>
+    <div class="tl-item"><div class="tl-title">Predictive / Pretext Tasks</div><div class="tl-body">Rotation, jigsaw, colorization, patch prediction — hand-crafted tasks</div></div>
+    <div class="tl-item"><div class="tl-title">Contrastive Methods (CPC, MoCo, SimCLR)</div><div class="tl-body">Directly optimize for invariance and instance discrimination</div></div>
+    <div class="tl-item"><div class="tl-title">Hybrid / Foundation Models</div><div class="tl-body">Combining reconstruction + discrimination at massive scale</div></div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" disabled>← Previous</button>
+    <div class="progress-dots" id="dots-motivation"></div>
+    <button class="nav-arrow" onclick="nextPage()">Introduction →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 2: INTRODUCTION ═══════════════════════ -->
+<div class="page" id="p-intro">
+  <div class="page-header">
+    <div class="ph-icon">📚</div>
+    <div><h2>Introduction</h2><p>What is SSL and what can you do with it?</p></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="box box-blue">
+      <div class="box-title">Deep Unsupervised Learning</div>
+      <p>Learns data representations <strong>without labels</strong>. A subset of Deep Learning → Representation Learning → Machine Learning.</p>
+    </div>
+    <div class="box box-purple">
+      <div class="box-title">Self-Supervised Learning (SSL)</div>
+      <p>Creates supervision from the data itself by designing <strong>pretext tasks</strong> that generate pseudo-labels — no manual annotation needed.</p>
+    </div>
+  </div>
+
+  <h3>Learning Outcomes</h3>
+  <div class="grid-2">
+    <div class="card">
+      <ul class="blist">
+        <li>Explain the <strong>data efficiency imperative</strong> behind SSL</li>
+        <li>Identify key <strong>cognitive principles</strong> that inspire SSL</li>
+        <li>Compare reconstructive, predictive, and contrastive pretext tasks</li>
+        <li>Implement <strong>Denoising Autoencoders</strong> &amp; <strong>Context Encoders</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <ul class="blist">
+        <li>Formulate the <strong>InfoNCE loss</strong> and train CPC models</li>
+        <li>Describe <strong>Instance Discrimination</strong></li>
+        <li>Implement the <strong>MoCo</strong> framework</li>
+        <li>Critically assess rotation, patch, and view prediction tasks</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>What is SSL — Key Trade-Offs</h3>
+  <div class="card">
+    <ul class="blist">
+      <li><strong>Pretext Task:</strong> Predicting masked patches, future representations (CPC), or distinguishing positive/negative pairs (contrastive)</li>
+      <li><strong>Downstream Task:</strong> After pre-training, the encoder is fine-tuned for classification, detection, segmentation, etc.</li>
+      <li><strong>Reconstructive</strong> (e.g., autoencoders): capture low-level details, may miss semantics</li>
+      <li><strong>Predictive/Contrastive</strong> (e.g., CPC, MoCo): focus on high-level semantic information</li>
+    </ul>
+  </div>
+
+  <h3>Cognitive Principles Behind SSL</h3>
+  <div class="grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.8rem; margin-bottom:8px">🧠</div>
+      <div style="font-weight:700; color:var(--accent); margin-bottom:6px">Predictive Coding</div>
+      <p style="margin:0; font-size:.88rem">The brain optimizes to <strong>predict future sensory inputs</strong>. SSL mimics this by predicting withheld data parts.</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.8rem; margin-bottom:8px">⚡</div>
+      <div style="font-weight:700; color:var(--accent2); margin-bottom:6px">Error Correction</div>
+      <p style="margin:0; font-size:.88rem">Learning signals arise from <strong>reconstructive or contrastive errors</strong> — denoising, inpainting, colorization.</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.8rem; margin-bottom:8px">👀</div>
+      <div style="font-weight:700; color:var(--accent3); margin-bottom:6px">Multi-View Perception</div>
+      <p style="margin:0; font-size:.88rem">Integrating <strong>different sensory views</strong> enhances representations — the same scene from multiple angles.</p>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Motivation</button>
+    <div class="progress-dots" id="dots-intro"></div>
+    <button class="nav-arrow" onclick="nextPage()">Pretext Taxonomy →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 3: TAXONOMY ═══════════════════════ -->
+<div class="page" id="p-taxonomy">
+  <div class="page-header">
+    <div class="ph-icon">🗂️</div>
+    <div><h2>Pretext Task Taxonomy</h2><p>Organizing all SSL methods by their supervision signal</p></div>
+  </div>
+
+  <p>Pretext tasks are the engine of SSL. We design them — not because we care about solving them — but because solving them forces the model to learn useful representations.</p>
+
+  <div class="grid-2">
+    <div class="box box-orange">
+      <div class="box-title">Reconstructive Methods</div>
+      <p>Reconstruct parts or properties of the input data.</p>
+      <span class="tag tag-orange">Denoising Autoencoders</span>
+      <span class="tag tag-orange">Context Encoders (Inpainting)</span>
+      <span class="tag tag-orange">Colorization</span>
+    </div>
+    <div class="box box-blue">
+      <div class="box-title">Predictive Methods</div>
+      <p>Predict withheld or transformed aspects of the data.</p>
+      <span class="tag tag-blue">View Prediction</span>
+      <span class="tag tag-blue">Relative Patch Position</span>
+      <span class="tag tag-blue">Rotation Prediction</span>
+      <span class="tag tag-blue">CPC</span>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Method</th><th>Category</th><th>Supervision Signal</th><th>Focus</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Denoising Autoencoder</td><td><span class="tag tag-orange">Reconstructive</span></td><td>Clean input</td><td>Low-level features</td></tr>
+        <tr><td>Context Encoders</td><td><span class="tag tag-orange">Reconstructive</span></td><td>Missing patch</td><td>Semantic context</td></tr>
+        <tr><td>Colorization</td><td><span class="tag tag-orange">Reconstructive</span></td><td>Color channels</td><td>Semantic grouping</td></tr>
+        <tr><td>View Prediction</td><td><span class="tag tag-blue">Predictive</span></td><td>Other modality</td><td>Cross-modal semantics</td></tr>
+        <tr><td>Relative Patch Position</td><td><span class="tag tag-blue">Predictive</span></td><td>Spatial layout</td><td>Geometric structure</td></tr>
+        <tr><td>Rotation Prediction</td><td><span class="tag tag-blue">Predictive</span></td><td>Rotation angle</td><td>Global shape</td></tr>
+        <tr><td>CPC</td><td><span class="tag tag-blue">Predictive</span></td><td>Future latents</td><td>High-level semantics</td></tr>
+        <tr><td>Instance Discrim. / MoCo</td><td><span class="tag tag-purple">Contrastive</span></td><td>Positive/Neg. pairs</td><td>Invariance</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="insight">
+    <div class="insight-icon">⚖️</div>
+    <div class="insight-text">
+      <strong>Key Trade-Off:</strong> Reconstructive methods capture <em>low-level pixel details</em> but may miss semantic meaning. Predictive and contrastive methods focus on <em>high-level structure</em> but may discard fine-grained detail.
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Introduction</button>
+    <div class="progress-dots" id="dots-taxonomy"></div>
+    <button class="nav-arrow" onclick="nextPage()">Denoising AE →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 4: DENOISING AE ═══════════════════════ -->
+<div class="page" id="p-denoising">
+  <div class="page-header">
+    <div class="ph-icon">🔧</div>
+    <div><h2>Denoising Autoencoders</h2><p>Vincent et al. (2008, 2010) — ICML</p></div>
+  </div>
+
+  <div class="box box-blue">
+    <div class="box-title">Core Idea</div>
+    <p style="margin-bottom:0">Corrupt the input, train the model to recover the clean version. The model can't just memorize — it must learn the underlying structure of data.</p>
+  </div>
+
+  <h3>How It Works</h3>
+  <ol class="steps">
+    <li><strong>Corrupt input:</strong> Add Gaussian noise or mask random pixels of \(x\) to produce \(\tilde{x}\)</li>
+    <li><strong>Encode:</strong> Map corrupted input to latent: \(z = f_\theta(\tilde{x})\)</li>
+    <li><strong>Decode:</strong> Reconstruct the original: \(\hat{x} = g_\phi(z)\)</li>
+    <li><strong>Loss:</strong> Minimize reconstruction error between \(\hat{x}\) and clean \(x\)</li>
+    <li><strong>Update:</strong> Backpropagate — the model learns noise-invariant features</li>
+  </ol>
+
+  <div class="eq-block">
+    <div class="eq-label">Reconstruction Loss (MSE)</div>
+    $$\mathcal{L}(\theta, \phi) = \mathbb{E}_{x, \tilde{x}} \left[ \| x - g_\phi(f_\theta(\tilde{x})) \|^2 \right]$$
+  </div>
+
+  <h3>Emphasizing Corrupted Dimensions</h3>
+  <div class="card">
+    <p>Vincent et al. (2010) showed that computing the loss <em>only on corrupted/masked dimensions</em> \(\mathcal{M}\) forces the model to focus capacity on recovering obscured information:</p>
+    <div class="eq-block" style="margin-top:12px">
+      <div class="eq-label">Masked Reconstruction Loss</div>
+      $$\mathcal{L} = \sum_{i \in \mathcal{M}} \left( x_i - \hat{x}_i \right)^2$$
+      <p style="font-size:.82rem; color:var(--muted); margin:8px 0 0">\(\mathcal{M}\) = set of corrupted/masked indices</p>
+    </div>
+  </div>
+
+  <h3>Why It Works</h3>
+  <div class="grid-2">
+    <div class="box box-green">
+      <div class="box-title">Robust Feature Learning</div>
+      <p style="margin:0">Features become less sensitive to noise and irrelevant variations — the model learns the data manifold.</p>
+    </div>
+    <div class="box box-purple">
+      <div class="box-title">Better Generalization</div>
+      <p style="margin:0">Cannot memorize inputs → learns manifold structure of data → better on unseen/noisy data.</p>
+    </div>
+  </div>
+
+  <div class="insight">
+    <div class="insight-icon">💡</div>
+    <div class="insight-text">
+      <strong>Analogy:</strong> If someone erased random parts of your study notes, you'd need to <em>understand</em> the material to fill in the gaps — not just memorize. That's exactly what a denoising autoencoder learns to do!
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Pretext Taxonomy</button>
+    <div class="progress-dots" id="dots-denoising"></div>
+    <button class="nav-arrow" onclick="nextPage()">Context Encoders →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 5: CONTEXT ENCODERS ═══════════════════════ -->
+<div class="page" id="p-context">
+  <div class="page-header">
+    <div class="ph-icon">🖼️</div>
+    <div><h2>Context Encoders</h2><p>Pathak et al. (2016) — CVPR 2016</p></div>
+  </div>
+
+  <div class="box box-blue">
+    <div class="box-title">Core Idea</div>
+    <p style="margin-bottom:0">Randomly mask entire regions of an image and train the model to reconstruct the missing content. To do this well, the model must understand <em>what belongs in that region</em> — forcing semantic representation learning.</p>
+  </div>
+
+  <h3>Architecture</h3>
+  <div class="flow">
+    <div class="flow-node blue">Input Image<br/><small>(with hole)</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node purple">Encoder<br/><small>Context → features</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node orange">Bottleneck<br/><small>Latent \(z\)</small></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green">Decoder<br/><small>Predict missing region</small></div>
+  </div>
+
+  <h3>Training Objective</h3>
+  <div class="grid-2">
+    <div class="eq-block">
+      <div class="eq-label">Reconstruction Loss (L2)</div>
+      $$\mathcal{L}_{rec} = \| M \odot (x - G(x \cdot (1{-}M))) \|^2$$
+      <p style="font-size:.82rem; color:var(--muted); margin:8px 0 0">\(M\) = binary mask, \(G\) = encoder-decoder, \(\odot\) = elementwise product</p>
+    </div>
+    <div class="eq-block">
+      <div class="eq-label">Adversarial Loss (GAN variant)</div>
+      $$\mathcal{L}_{adv} = \max_D \,\mathbb{E}_x\!\left[\log D(x) + \log(1 - D(G(\hat{x})))\right]$$
+      <p style="font-size:.82rem; color:var(--muted); margin:8px 0 0">Discriminator \(D\) encourages realistic inpainted regions</p>
+    </div>
+  </div>
+
+  <h3>Why Does This Work?</h3>
+  <ul class="blist">
+    <li>The network must understand <strong>global and local context</strong> to generate plausible content</li>
+    <li>Forces learning of <strong>semantic features and spatial relationships</strong></li>
+    <li>Representations transfer well to classification, detection, segmentation</li>
+  </ul>
+
+  <h3>Applications</h3>
+  <div class="grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.8rem; margin-bottom:8px">🎨</div>
+      <div style="font-weight:600">Image Inpainting</div>
+      <p style="font-size:.85rem; margin:0">Restore damaged or removed regions</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.8rem; margin-bottom:8px">🔁</div>
+      <div style="font-weight:600">Transfer Learning</div>
+      <p style="font-size:.85rem; margin:0">Pre-trained features for other vision tasks</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.8rem; margin-bottom:8px">🚨</div>
+      <div style="font-weight:600">Anomaly Detection</div>
+      <p style="font-size:.85rem; margin:0">Compare predicted vs. actual content</p>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Denoising AE</button>
+    <div class="progress-dots" id="dots-context"></div>
+    <button class="nav-arrow" onclick="nextPage()">View Prediction →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 6: VIEW PREDICTION ═══════════════════════ -->
+<div class="page" id="p-views">
+  <div class="page-header">
+    <div class="ph-icon">👁️</div>
+    <div><h2>Predicting One View from Another</h2><p>Richard Zhang (2019)</p></div>
+  </div>
+
+  <div class="box box-purple">
+    <div class="box-title">Core Idea</div>
+    <p style="margin-bottom:0">Train a model to predict or reconstruct one view of data given another. Views can be different modalities (infrared vs. RGB) or different augmentations (color vs. grayscale).</p>
+  </div>
+
+  <h3>Types of Views</h3>
+  <div class="grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.6rem; margin-bottom:8px">🌈</div>
+      <div style="font-weight:700; color:var(--accent)">Modalities</div>
+      <p style="font-size:.86rem; margin:0">Infrared ↔ RGB, Depth ↔ Color, Audio ↔ Video</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.6rem; margin-bottom:8px">🎨</div>
+      <div style="font-weight:700; color:var(--accent2)">Augmentations</div>
+      <p style="font-size:.86rem; margin:0">Color ↔ Grayscale, Different crops, Rotated versions</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.6rem; margin-bottom:8px">⏱️</div>
+      <div style="font-weight:700; color:var(--accent3)">Time Steps</div>
+      <p style="font-size:.86rem; margin:0">Past frame → Future frame (video prediction)</p>
+    </div>
+  </div>
+
+  <h3>Example: Infrared → RGB</h3>
+  <div class="card">
+    <div class="flow" style="margin:0 0 14px">
+      <div class="flow-node orange">Infrared<br/>Image</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node purple">Neural<br/>Network</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node green">Predicted<br/>RGB Image</div>
+      <div class="flow-arrow" style="color:var(--muted)">vs.</div>
+      <div class="flow-node blue">True RGB<br/>(supervision)</div>
+    </div>
+    <p style="margin:0; font-size:.9rem">In remote sensing this forces the model to learn the <strong>relationship between modalities</strong>, improving robustness when one modality is missing or corrupted.</p>
+  </div>
+
+  <h3>Benefits &amp; Challenges</h3>
+  <div class="grid-2">
+    <div class="box box-green">
+      <div class="box-title">Benefits</div>
+      <ul class="blist">
+        <li><strong>Data augmentation:</strong> Models become invariant to transformations</li>
+        <li><strong>Multi-modal learning:</strong> Leverage complementary information</li>
+        <li><strong>No labels needed:</strong> The other view IS the supervision</li>
+      </ul>
+    </div>
+    <div class="box box-red">
+      <div class="box-title">Challenges</div>
+      <ul class="blist">
+        <li>Mapping between modalities may be <strong>complex and non-linear</strong></li>
+        <li>Requires careful architecture &amp; loss function design</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Context Encoders</button>
+    <div class="progress-dots" id="dots-views"></div>
+    <button class="nav-arrow" onclick="nextPage()">Patch Positions →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 7: PATCH POSITIONS ═══════════════════════ -->
+<div class="page" id="p-patches">
+  <div class="page-header">
+    <div class="ph-icon">🧩</div>
+    <div><h2>Relative Position of Image Patches</h2><p>Doersch et al. (2015) · Noroozi &amp; Favaro (2016)</p></div>
+  </div>
+
+  <div class="box box-orange">
+    <div class="box-title">The Task</div>
+    <p style="margin-bottom:0">Take two image patches and ask the model: <strong>where is patch B relative to patch A?</strong> (8 possible positions: above-left, above, above-right, left, right, below-left, below, below-right).</p>
+  </div>
+
+  <h3>Step-by-Step</h3>
+  <ol class="steps">
+    <li>Divide an image into a 3×3 grid of patches</li>
+    <li>Sample the <strong>center patch</strong> as the reference</li>
+    <li>Sample one of the 8 <strong>surrounding patches</strong></li>
+    <li>Feed both patches through the network</li>
+    <li>Predict: <em>which of the 8 positions does the second patch occupy?</em></li>
+  </ol>
+
+  <h3>Jigsaw Puzzle Extension (Noroozi &amp; Favaro, ECCV 2016)</h3>
+  <div class="card">
+    <p>Rather than predicting the position of one patch, <strong>shuffle all patches</strong> and predict the correct ordering — solving a jigsaw puzzle as a pretext task.</p>
+    <div class="grid-2" style="margin-top:14px">
+      <div class="box box-blue" style="margin-bottom:0">
+        <div class="box-title">Input</div>
+        <p style="margin:0; font-size:.88rem">Shuffled 3×3 patches from an image</p>
+      </div>
+      <div class="box box-green" style="margin-bottom:0">
+        <div class="box-title">Prediction</div>
+        <p style="margin:0; font-size:.88rem">Correct permutation index from a set of \(N\) pre-defined permutations</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>What the Model Learns</h3>
+  <div class="insight">
+    <div class="insight-icon">🧠</div>
+    <div class="insight-text">
+      <strong>Geometric relationships and spatial context.</strong> The model must understand where heads are relative to bodies, how objects are structured, and what visual patterns coexist. This knowledge transfers well to object detection and segmentation.
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← View Prediction</button>
+    <div class="progress-dots" id="dots-patches"></div>
+    <button class="nav-arrow" onclick="nextPage()">Rotation →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 8: ROTATION ═══════════════════════ -->
+<div class="page" id="p-rotation">
+  <div class="page-header">
+    <div class="ph-icon">🔄</div>
+    <div><h2>Rotation Prediction</h2><p>Gidaris, Singh, Komodakis — ICLR 2018</p></div>
+  </div>
+
+  <div class="box box-blue">
+    <div class="box-title">The Task</div>
+    <p style="margin-bottom:0">Rotate images by one of 4 predefined angles: \(0°, 90°, 180°, 270°\). Train a classifier to predict <em>which rotation was applied</em>. The rotation label is <strong>free</strong> — no human annotation required!</p>
+  </div>
+
+  <h3>Implementation Steps</h3>
+  <ol class="steps">
+    <li>Randomly select rotation \(r \in \{0°, 90°, 180°, 270°\}\)</li>
+    <li>Apply rotation to image \(x\) → get \(x^r\)</li>
+    <li>Feed \(x^r\) through encoder \(f_\theta\)</li>
+    <li>Pass features through a 4-class classification head</li>
+    <li>Compute cross-entropy loss and update</li>
+  </ol>
+
+  <div class="eq-block">
+    <div class="eq-label">Cross-Entropy Loss for Rotation Prediction</div>
+    $$\mathcal{L} = -\frac{1}{N} \sum_{i=1}^{N} \sum_{r \in \mathcal{R}} \mathbf{1}[y_i = r] \log p(r \mid x_i^r;\, \theta)$$
+    <p style="font-size:.82rem; color:var(--muted); margin-top:8px; margin-bottom:0">\(\mathcal{R} = \{0°, 90°, 180°, 270°\}\), \(y_i\) = true rotation applied to image \(i\)</p>
+  </div>
+
+  <h3>Why Does Rotation Work as a Pretext Task?</h3>
+  <div class="card">
+    <p style="margin:0">To predict a 90° rotation, the model needs to recognize canonical orientations of objects — faces, cars, animals all have strong orientation priors. This forces learning of <strong>global shape and semantic features</strong>.</p>
+  </div>
+
+  <h3>Benefits</h3>
+  <div class="grid-3">
+    <div class="box box-green" style="text-align:center; margin-bottom:0">
+      <div class="box-title">Simple</div>
+      <p style="margin:0; font-size:.88rem">Easy to implement, no special infrastructure</p>
+    </div>
+    <div class="box box-green" style="text-align:center; margin-bottom:0">
+      <div class="box-title">Efficient</div>
+      <p style="margin:0; font-size:.88rem">Computationally inexpensive vs. generative methods</p>
+    </div>
+    <div class="box box-green" style="text-align:center; margin-bottom:0">
+      <div class="box-title">Transferable</div>
+      <p style="margin:0; font-size:.88rem">Features transfer well to classification &amp; detection</p>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Patch Positions</button>
+    <div class="progress-dots" id="dots-rotation"></div>
+    <button class="nav-arrow" onclick="nextPage()">CPC →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 9: CPC ═══════════════════════ -->
+<div class="page" id="p-cpc">
+  <div class="page-header">
+    <div class="ph-icon">🔮</div>
+    <div><h2>Contrastive Predictive Coding (CPC)</h2><p>van den Oord, Li, Vinyals — arXiv:1807.03748</p></div>
+  </div>
+
+  <div class="box box-purple">
+    <div class="box-title">Core Idea</div>
+    <p style="margin-bottom:0">Learn representations by <strong>predicting future information in latent space</strong> using autoregressive models. Instead of predicting raw pixels, CPC predicts in the latent space — a much richer task.</p>
+  </div>
+
+  <h3>Key Components (click to expand)</h3>
+
+  <div class="accordion">
+    <button class="acc-btn" onclick="toggleAcc(this)">1 · Encoder &nbsp;<small style="color:var(--muted)">Maps input → latent \(z_t\)</small> <span class="acc-chevron">▼</span></button>
+    <div class="acc-body">
+      <div class="eq-block"><div class="eq-label">Encoder</div>$$z_t = \text{Encoder}(x_t)$$</div>
+      <p>Typically a <strong>convolutional network</strong> for images/audio or a transformer for text. Maps the raw input sequence to latent vectors.</p>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <button class="acc-btn" onclick="toggleAcc(this)">2 · Autoregressor &nbsp;<small style="color:var(--muted)">Aggregates past latents → context \(c_t\)</small> <span class="acc-chevron">▼</span></button>
+    <div class="acc-body">
+      <div class="eq-block"><div class="eq-label">Autoregressor</div>$$c_t = \text{AR}(z_{\leq t})$$</div>
+      <p>Often an <strong>RNN or masked transformer</strong>. Aggregates all past latents \(\{z_1,\ldots,z_t\}\) into a single context vector \(c_t\).</p>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <button class="acc-btn" onclick="toggleAcc(this)">3 · Future Prediction &nbsp;<small style="color:var(--muted)">Predict \(\hat{z}_{t+k}\) from \(c_t\)</small> <span class="acc-chevron">▼</span></button>
+    <div class="acc-body">
+      <div class="eq-block"><div class="eq-label">Prediction Step k</div>$$\hat{z}_{t+k} = W_k \, c_t$$</div>
+      <p>A linear transformation \(W_k\) (one per future step \(k\)) predicts what the future latent will look like, given the current context.</p>
+    </div>
+  </div>
+
+  <div class="accordion">
+    <button class="acc-btn" onclick="toggleAcc(this)">4 · InfoNCE Loss &nbsp;<small style="color:var(--muted)">Contrastive objective</small> <span class="acc-chevron">▼</span></button>
+    <div class="acc-body">
+      <div class="eq-block">
+        <div class="eq-label">InfoNCE Loss for prediction step k</div>
+        $$\mathcal{L}_{\text{InfoNCE}} = -\mathbb{E}\left[\log \frac{\exp\!\left(z_{t+k}^\top W_k c_t\right)}{\displaystyle\sum_{j} \exp\!\left(z_j^\top W_k c_t\right)}\right]$$
+        <p style="font-size:.82rem; color:var(--muted); margin:8px 0 0">Denominator sums over one positive (true future) + multiple negative samples. Minimizing this maximizes mutual information between \(c_t\) and \(z_{t+k}\).</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Full Pipeline</h3>
+  <div class="flow">
+    <div class="flow-node blue">Input \(x_1\ldots x_t\)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node purple">Encoder \(z_t\!=\!f(x_t)\)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node orange">AR \(c_t\!=\!\text{AR}(z_{\leq t})\)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green">Predict \(\hat{z}_{t+k}\!</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node blue">InfoNCE Loss</div>
+  </div>
+
+  <h3>Applications</h3>
+  <div class="grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.6rem; margin-bottom:6px">🎵</div>
+      <div style="font-weight:600; margin-bottom:4px">Speech / Audio</div>
+      <p style="font-size:.85rem; margin:0">Predict future audio frames; features improve speech recognition</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.6rem; margin-bottom:6px">🖼️</div>
+      <div style="font-weight:600; margin-bottom:4px">ImageNet (CPCv2)</div>
+      <p style="font-size:.85rem; margin:0">Competitive with supervised methods; enables data-efficient recognition</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:1.6rem; margin-bottom:6px">📝</div>
+      <div style="font-weight:600; margin-bottom:4px">NLP &amp; RL</div>
+      <p style="font-size:.85rem; margin:0">Word/sentence representations; RL state representation learning</p>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Rotation</button>
+    <div class="progress-dots" id="dots-cpc"></div>
+    <button class="nav-arrow" onclick="nextPage()">Instance Discrim. →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 10: INSTANCE DISCRIMINATION ═══════════════════════ -->
+<div class="page" id="p-instance">
+  <div class="page-header">
+    <div class="ph-icon">🎯</div>
+    <div><h2>Instance Discrimination &amp; Contrastive Learning</h2><p>The foundation of modern SSL</p></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="box box-orange">
+      <div class="box-title">Pretext Task Evolution</div>
+      <ul class="blist">
+        <li><strong>Earlier:</strong> handcrafted tasks (jigsaw, colorization, rotation)</li>
+        <li><strong>Now:</strong> contrastive learning directly optimizes invariance &amp; discrimination</li>
+        <li><strong>Result:</strong> better, more transferable features — narrows gap with supervised learning</li>
+      </ul>
+    </div>
+    <div class="box box-purple">
+      <div class="box-title">Contrastive Learning</div>
+      <ul class="blist">
+        <li>Uses <strong>data structure instead of labels</strong></li>
+        <li>Pulls together <strong>positive pairs</strong> (same image, different augmentations)</li>
+        <li>Pushes apart <strong>negative pairs</strong> (different images)</li>
+        <li>Uses InfoNCE or similar contrastive loss</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Instance Discrimination — Core Idea</h3>
+  <div class="card">
+    <p><strong>Treat every image as its own class.</strong> With \(N\) images there are \(N\) classes. The model must learn to tell apart individual instances.</p>
+    <div class="grid-2" style="margin-top:14px">
+      <div class="box box-green" style="margin-bottom:0">
+        <div class="box-title">Positive Pairs ✅</div>
+        <p style="margin:0; font-size:.88rem">Two different augmented views of the <strong>same image</strong> (crop, flip, color jitter)</p>
+      </div>
+      <div class="box box-red" style="margin-bottom:0">
+        <div class="box-title">Negative Pairs ❌</div>
+        <p style="margin:0; font-size:.88rem">Augmented views from <strong>different images</strong> — treated as different classes</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="eq-block">
+    <div class="eq-label">InfoNCE Loss for Instance Discrimination</div>
+    $$\mathcal{L} = -\log \frac{\exp\!\left(\text{sim}(z_i, z_j)/\tau\right)}{\displaystyle\sum_{k=1}^{2N} \mathbf{1}_{[k \neq i]} \exp\!\left(\text{sim}(z_i, z_k)/\tau\right)}$$
+    <p style="font-size:.82rem; color:var(--muted); margin-top:8px; margin-bottom:0">\((i,j)\) = positive pair, \(\tau\) = temperature, \(\text{sim}(\cdot,\cdot)\) = cosine similarity</p>
+  </div>
+
+  <h3>Methods Built on Instance Discrimination</h3>
+  <div class="grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-weight:800; font-size:1.2rem; color:var(--accent); margin-bottom:6px">MoCo</div>
+      <p style="font-size:.85rem; margin:0">Momentum Contrast — large dictionary queue + EMA key encoder</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-weight:800; font-size:1.2rem; color:var(--accent2); margin-bottom:6px">SimCLR</div>
+      <p style="font-size:.85rem; margin:0">Simple Framework — large batches + projection head</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-weight:800; font-size:1.2rem; color:var(--accent3); margin-bottom:6px">PIRL</div>
+      <p style="font-size:.85rem; margin:0">Combines pretext tasks with contrastive learning</p>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← CPC</button>
+    <div class="progress-dots" id="dots-instance"></div>
+    <button class="nav-arrow" onclick="nextPage()">MoCo →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 11: MOCO ═══════════════════════ -->
+<div class="page" id="p-moco">
+  <div class="page-header">
+    <div class="ph-icon">⚡</div>
+    <div><h2>Momentum Contrast (MoCo)</h2><p>He et al. — CVPR 2020</p></div>
+  </div>
+
+  <div class="box box-blue">
+    <div class="box-title">The Problem MoCo Solves</div>
+    <p style="margin-bottom:0">Effective contrastive learning needs a <strong>large number of negatives</strong>. But batch size is limited by GPU memory. MoCo decouples negative set size from batch size using a <em>dictionary queue</em>.</p>
+  </div>
+
+  <h3>Two Encoders</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="margin-top:0; color:var(--accent)">Query Encoder \(f_q\)</h3>
+      <p>Processes one augmented view. Updated by <strong>standard backpropagation</strong>.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0; color:var(--accent2)">Key Encoder \(f_k\)</h3>
+      <p>Processes the other augmented view. Updated by <strong>Exponential Moving Average (EMA)</strong> of \(f_q\) — NOT by backprop!</p>
+    </div>
+  </div>
+
+  <div class="eq-block">
+    <div class="eq-label">EMA Momentum Update</div>
+    $$\theta_k \leftarrow m \cdot \theta_k + (1 - m) \cdot \theta_q$$
+    <p style="font-size:.82rem; color:var(--muted); margin-top:8px; margin-bottom:0">\(m = 0.999\) — the key encoder evolves very slowly, keeping queued keys consistent</p>
+  </div>
+
+  <h3>Dictionary Queue</h3>
+  <div class="card">
+    <p>MoCo maintains a large <strong>FIFO queue</strong> of encoded keys from recent batches:</p>
+    <ul class="blist" style="margin-top:10px">
+      <li>Provides a large negative set (e.g., 65,536 negatives)</li>
+      <li>Doesn't require storing all negatives in GPU memory at once</li>
+      <li>Keys stay consistent because the key encoder changes slowly (EMA)</li>
+    </ul>
+  </div>
+
+  <div class="eq-block">
+    <div class="eq-label">MoCo InfoNCE Loss</div>
+    $$\mathcal{L}_q = -\log \frac{\exp(q \cdot k^+ / \tau)}{\exp(q \cdot k^+ / \tau) + \displaystyle\sum_{i=0}^{N} \exp(q \cdot k_i / \tau)}$$
+    <p style="font-size:.82rem; color:var(--muted); margin-top:8px; margin-bottom:0">\(q\) = query, \(k^+\) = positive key (same image, different augmentation), \(\{k_i\}\) = negative keys from queue, \(\tau\) = temperature</p>
+  </div>
+
+  <h3>Training Steps</h3>
+  <ol class="steps">
+    <li>Generate two augmentations: one for \(f_q\) (query), one for \(f_k\) (key)</li>
+    <li>Encode both: \(q = f_q(\text{aug}_1(x))\), \(k^+ = f_k(\text{aug}_2(x))\)</li>
+    <li>Compute InfoNCE loss using \(q\), \(k^+\), and the dictionary queue of negative keys</li>
+    <li>Update \(f_q\) via <strong>backpropagation</strong>; update \(f_k\) via <strong>momentum EMA</strong> (no gradient!)</li>
+    <li><strong>Enqueue</strong> new key; <strong>dequeue</strong> oldest key to maintain dictionary size</li>
+  </ol>
+
+  <div class="insight">
+    <div class="insight-icon">🎯</div>
+    <div class="insight-text">
+      <strong>Why momentum matters:</strong> If the key encoder changed rapidly, keys in the queue would become inconsistent — encoded by very different models. EMA momentum keeps the key encoder evolving slowly so all queued keys are encoded by a <em>similar</em> model.
+    </div>
+  </div>
+
+  <h3>Comparing Contrastive SSL Strategies</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Method</th><th>Negative Strategy</th><th>Key Encoder</th><th>Memory Cost</th></tr></thead>
+      <tbody>
+        <tr><td><strong>End-to-End</strong></td><td>Same large batch</td><td>Same (backprop)</td><td class="c-bad">Very high</td></tr>
+        <tr><td><strong>Memory Bank</strong></td><td>Stored feature vectors</td><td>None (old vectors)</td><td class="c-good">Low</td></tr>
+        <tr><td><strong>MoCo ✓</strong></td><td>Dictionary queue</td><td>EMA of query encoder</td><td class="c-good">Low + consistent</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Instance Discrim.</button>
+    <div class="progress-dots" id="dots-moco"></div>
+    <button class="nav-arrow" onclick="nextPage()">Quiz →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 12: QUIZ ═══════════════════════ -->
+<div class="page" id="p-quiz">
+  <div class="page-header">
+    <div class="ph-icon">🧠</div>
+    <div><h2>Knowledge Quiz</h2><p>Test your understanding — 10 questions covering all topics</p></div>
+  </div>
+
+  <div class="quiz-score-bar">
+    <div class="score-display" id="scoreDisplay">0 / 10</div>
+    <div class="score-label">questions answered correctly</div>
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">1</span>What is the main motivation for Self-Supervised Learning?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q1')">Labels are too easy to obtain</button>
+      <button class="q-btn" onclick="answer(this,true,'q1')">Labeled data is expensive; unlabeled data is abundant</button>
+      <button class="q-btn" onclick="answer(this,false,'q1')">Supervised learning has poor accuracy</button>
+      <button class="q-btn" onclick="answer(this,false,'q1')">SSL is always faster to train</button>
+    </div>
+    <div class="quiz-fb" id="q1">✅ Correct! Annotation is costly and slow, but the internet provides vast unlabeled images, video, and text.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">2</span>In a Denoising Autoencoder, what is the model trained to do?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q2')">Generate new images from random noise</button>
+      <button class="q-btn" onclick="answer(this,true,'q2')">Reconstruct the original clean input from a corrupted version</button>
+      <button class="q-btn" onclick="answer(this,false,'q2')">Classify images into categories</button>
+      <button class="q-btn" onclick="answer(this,false,'q2')">Predict future frames in a video</button>
+    </div>
+    <div class="quiz-fb" id="q2">✅ Correct! The input is corrupted and the model learns to recover the clean original — forcing noise-invariant features.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">3</span>What is the pretext task in Context Encoders?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q3')">Predict the rotation applied to an image</button>
+      <button class="q-btn" onclick="answer(this,false,'q3')">Classify the object category</button>
+      <button class="q-btn" onclick="answer(this,true,'q3')">Reconstruct a randomly masked/removed region of the image</button>
+      <button class="q-btn" onclick="answer(this,false,'q3')">Predict the relative position of two patches</button>
+    </div>
+    <div class="quiz-fb" id="q3">✅ Correct! Context Encoders mask patches and train the model to inpaint the missing content using surrounding context.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">4</span>What rotation angles does Rotation Prediction use as class labels?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q4')">0°, 45°, 135°, 315°</button>
+      <button class="q-btn" onclick="answer(this,true,'q4')">0°, 90°, 180°, 270°</button>
+      <button class="q-btn" onclick="answer(this,false,'q4')">Any angle between 0° and 360°</button>
+      <button class="q-btn" onclick="answer(this,false,'q4')">0°, 60°, 120°, 240°</button>
+    </div>
+    <div class="quiz-fb" id="q4">✅ Correct! The four rotations form a 4-class classification problem — and the labels come for free!</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">5</span>In CPC, what does the autoregressor produce?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q5')">The final classification label</button>
+      <button class="q-btn" onclick="answer(this,true,'q5')">A context vector \(c_t\) summarizing past latents \(\{z_1,\ldots,z_t\}\)</button>
+      <button class="q-btn" onclick="answer(this,false,'q5')">The reconstructed raw input</button>
+      <button class="q-btn" onclick="answer(this,false,'q5')">A list of positive and negative pairs</button>
+    </div>
+    <div class="quiz-fb" id="q5">✅ Correct! The AR model aggregates past latents into context vector \(c_t\), then used to predict future latents.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">6</span>The InfoNCE loss achieves which objective?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q6')">Minimizes pixel-level reconstruction error</button>
+      <button class="q-btn" onclick="answer(this,false,'q6')">Maximizes cross-entropy over class labels</button>
+      <button class="q-btn" onclick="answer(this,true,'q6')">Maximizes mutual information between context and future latent representations</button>
+      <button class="q-btn" onclick="answer(this,false,'q6')">Minimizes distance between all pairs of samples</button>
+    </div>
+    <div class="quiz-fb" id="q6">✅ Correct! InfoNCE is a lower bound on mutual information — minimizing the loss maximizes MI between context and future.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">7</span>In Instance Discrimination, what are "positive pairs"?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q7')">Two images from the same category/class</button>
+      <button class="q-btn" onclick="answer(this,true,'q7')">Two different augmentations of the same image</button>
+      <button class="q-btn" onclick="answer(this,false,'q7')">Any two visually similar images</button>
+      <button class="q-btn" onclick="answer(this,false,'q7')">Two consecutive frames in a video</button>
+    </div>
+    <div class="quiz-fb" id="q7">✅ Correct! Positive pairs = same image, two augmentations (crop, flip, color jitter). No label needed!</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">8</span>In MoCo, how is the key encoder \(f_k\) updated?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q8')">Standard backpropagation (same as the query encoder)</button>
+      <button class="q-btn" onclick="answer(this,false,'q8')">It is never updated — fixed random weights</button>
+      <button class="q-btn" onclick="answer(this,true,'q8')">Exponential moving average (EMA) of the query encoder parameters</button>
+      <button class="q-btn" onclick="answer(this,false,'q8')">Copied directly from the query encoder every epoch</button>
+    </div>
+    <div class="quiz-fb" id="q8">✅ Correct! \(\theta_k \leftarrow m\theta_k + (1-m)\theta_q\) with \(m=0.999\). Slow evolution keeps dictionary keys consistent.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">9</span>What is the purpose of the dictionary queue in MoCo?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q9')">Store training labels for supervised fine-tuning</button>
+      <button class="q-btn" onclick="answer(this,true,'q9')">Provide a large, consistent set of negative keys without requiring huge batch sizes</button>
+      <button class="q-btn" onclick="answer(this,false,'q9')">Cache decoded images to avoid recomputing them</button>
+      <button class="q-btn" onclick="answer(this,false,'q9')">Store model weights at each training step</button>
+    </div>
+    <div class="quiz-fb" id="q9">✅ Correct! The queue decouples negatives from batch size — 65K negatives without a 65K-image batch.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q"><span class="qnum">10</span>Which is a key advantage of Predictive/Contrastive methods over Reconstructive methods?</div>
+    <div class="quiz-options">
+      <button class="q-btn" onclick="answer(this,false,'q10')">They are always faster to train</button>
+      <button class="q-btn" onclick="answer(this,false,'q10')">They produce better pixel-level reconstruction</button>
+      <button class="q-btn" onclick="answer(this,true,'q10')">They focus on high-level semantic information rather than low-level pixel details</button>
+      <button class="q-btn" onclick="answer(this,false,'q10')">They require more labeled data</button>
+    </div>
+    <div class="quiz-fb" id="q10">✅ Correct! Reconstructive methods can overfit to unimportant pixel details. Predictive/contrastive methods capture semantic structure.</div>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← MoCo</button>
+    <div class="progress-dots" id="dots-quiz"></div>
+    <button class="nav-arrow" onclick="nextPage()">References →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PAGE 13: REFERENCES ═══════════════════════ -->
+<div class="page" id="p-refs">
+  <div class="page-header">
+    <div class="ph-icon">📖</div>
+    <div><h2>References</h2><p>All papers cited in the lecture</p></div>
+  </div>
+
+  <div class="card">
+    <ol style="padding-left:20px; color:#c9d1d9; line-height:2.2">
+      <li>Vincent, P., Larochelle, H., Bengio, Y., &amp; Manzagol, P.-A. (2008). <em>Extracting and Composing Robust Features with Denoising Autoencoders.</em> ICML.</li>
+      <li>Pathak, D., Krahenbuhl, P., Donahue, J., Darrell, T., &amp; Efros, A. A. (2016). <em>Context Encoders: Feature Learning by Inpainting.</em> CVPR.</li>
+      <li>Noroozi, M., &amp; Favaro, P. (2016). <em>Unsupervised Learning of Visual Representations by Solving Jigsaw Puzzles.</em> ECCV.</li>
+      <li>Gidaris, S., Singh, P., &amp; Komodakis, N. (2018). <em>Unsupervised Representation Learning by Predicting Image Rotations.</em> ICLR.</li>
+      <li>van den Oord, A., Li, Y., &amp; Vinyals, O. (2018). <em>Representation Learning with Contrastive Predictive Coding.</em> arXiv:1807.03748.</li>
+      <li>Mikolov, T., Chen, K., Corrado, G., &amp; Dean, J. (2013). <em>Efficient Estimation of Word Representations in Vector Space (word2vec).</em> arXiv:1301.3781.</li>
+      <li>He, K., Fan, H., Wu, Y., Xie, S., &amp; Girshick, R. (2020). <em>Momentum Contrast for Unsupervised Visual Representation Learning.</em> CVPR.</li>
+    </ol>
+  </div>
+
+  <div class="box box-purple" style="margin-top:24px">
+    <div class="box-title">Credits</div>
+    <p>Lecture by <strong>Naeemullah Khan</strong> (naeemullah.khan@kaust.edu.sa), KAUST Academy, King Abdullah University of Science and Technology, June 12, 2025.</p>
+    <p style="margin-bottom:0">External collaboration: <strong>Dr. Prashant Aparajeya</strong>, Computer Vision Scientist — Director, AISimply Ltd (p.aparajeya@aisimply.uk).</p>
+  </div>
+
+  <div class="page-nav">
+    <button class="nav-arrow" onclick="prevPage()">← Quiz</button>
+    <div class="progress-dots" id="dots-refs"></div>
+    <button class="nav-arrow" disabled>End ✓</button>
+  </div>
+</div>
+
+<script>
+  // ── Page order ──
+  const PAGES = ['p-motivation','p-intro','p-taxonomy','p-denoising','p-context','p-views','p-patches','p-rotation','p-cpc','p-instance','p-moco','p-quiz','p-refs'];
+  let currentIdx = 0;
+
+  function showPage(id, linkEl) {
+    // hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    // deactivate all tabs
+    document.querySelectorAll('.tab-link').forEach(a => a.classList.remove('active'));
+    // show selected
+    document.getElementById(id).classList.add('active');
+    if (linkEl) linkEl.classList.add('active');
+    currentIdx = PAGES.indexOf(id);
+    window.scrollTo({top:0, behavior:'smooth'});
+    // re-typeset MathJax if loaded
+    if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+  }
+
+  function nextPage() {
+    if (currentIdx < PAGES.length - 1) {
+      const nextId = PAGES[currentIdx + 1];
+      const link = document.querySelector(`[data-page="${nextId}"]`);
+      showPage(nextId, link);
+      // scroll tab bar to keep active tab visible
+      if (link) link.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+    }
+  }
+
+  function prevPage() {
+    if (currentIdx > 0) {
+      const prevId = PAGES[currentIdx - 1];
+      const link = document.querySelector(`[data-page="${prevId}"]`);
+      showPage(prevId, link);
+      if (link) link.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+    }
+  }
+
+  // ── Accordion ──
+  function toggleAcc(btn) {
+    btn.classList.toggle('open');
+    btn.nextElementSibling.classList.toggle('open');
+  }
+
+  // ── Quiz ──
+  let correct = 0;
+  const answered = {};
+
+  function answer(btn, isCorrect, qid) {
+    if (answered[qid]) return;
+    answered[qid] = true;
+    const allBtns = btn.closest('.quiz-options').querySelectorAll('.q-btn');
+    allBtns.forEach(b => b.disabled = true);
+    const fb = document.getElementById(qid);
+    if (isCorrect) {
+      btn.classList.add('correct');
+      fb.classList.add('ok', 'show');
+      correct++;
+    } else {
+      btn.classList.add('wrong');
+      fb.textContent = '❌ Not quite. ' + fb.textContent;
+      fb.classList.add('fail', 'show');
+      allBtns.forEach(b => { if (b.onclick && b.onclick.toString().includes('true')) b.classList.add('correct'); });
+    }
+    document.getElementById('scoreDisplay').textContent = correct + ' / 10';
+    document.getElementById('progFill').style.width = (correct * 10) + '%';
+  }
+</script>
+</body>
+</html>
